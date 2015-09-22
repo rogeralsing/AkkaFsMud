@@ -97,7 +97,11 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
                 | NameNotFound -> notify(Message("Could not find {0}",[nameOfObject]))
 
             } |> workflow
- 
+        | Inventory ->
+            async {
+                let! names = aggregateNames childFactory (content)
+                self <! Notify(Message("You have {0}",[names]))
+            } |> workflow
         | o -> failwith ("unhandled message" + o.ToString())
         return! loop(state)
     }

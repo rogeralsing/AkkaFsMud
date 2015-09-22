@@ -43,6 +43,8 @@ while true do
     | Some(str),None ->        
         match str with
         | "look"
-        | "l" -> player <! Look   
+        | "l" -> player <! Look 
+        | "inventory"
+        | "inv" -> player <! Inventory  
         | other -> printfn "unknown command %A" other
     | _ -> ignore()
