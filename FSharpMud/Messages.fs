@@ -1,0 +1,35 @@
+﻿module Messages
+open Akka.Actor
+
+type FindByNameResult = 
+| NameFound of item:IActorRef * name:string
+| NameNotFound
+
+type Message = 
+| Message of format: string * args: list<obj>
+
+type ThingMessage =
+| SetOutput of IActorRef
+| SetContainer of IActorRef
+| ContainerLook of who : IActorRef
+| ContainerRemove of IActorRef
+| ContainerAdd of IActorRef
+| GetName
+| Where
+| Inventory
+| Look
+| Say of message: string
+| Notify of Message
+| ContainerNotify of Message * except: seq<IActorRef>
+| FindByName of nameToFind: string * except: seq<IActorRef>
+| FindObjectByName of string 
+| FoundObjectByName of Option<(IActorRef * string)>
+| Take of nameOfObject: string
+| Drop of nameOfObject: string
+| Put of nameOfObjectToTake: string * nameOfContainer: string
+| Fight of nameOfTarget: string
+| SetTarget of IActorRef
+| AttackCurrentTarget
+| TakeDamage of attacker: IActorRef * damage: int
+| NotifyCombatStatus
+| Died
