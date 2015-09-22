@@ -37,6 +37,8 @@ while true do
         | "take"
         | "get"
         | "t" -> player <! Take(msg)
+        | "drop"
+        | "d" -> player <! Drop(msg)
         | other -> printfn "unknown command %A" other
     | Some(str),None ->        
         match str with

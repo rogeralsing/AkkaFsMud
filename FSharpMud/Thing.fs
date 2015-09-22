@@ -87,6 +87,16 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
                 | NameNotFound -> notify(Message("Could not find {0}",[nameOfObject]))
 
             } |> workflow
+        | Drop(nameOfObject) -> 
+            async {
+                let! findResult = self.Ask<FindByNameResult>(FindByName(nameOfObject,[]),TimeSpan.FromSeconds(1.0))
+                match findResult with
+                | NameFound(item,name) -> 
+                    item <! SetContainer(state.container)
+                    notify(Message("You drop {0}",[name]))
+                | NameNotFound -> notify(Message("Could not find {0}",[nameOfObject]))
+
+            } |> workflow
  
         | o -> failwith ("unhandled message" + o.ToString())
         return! loop(state)
