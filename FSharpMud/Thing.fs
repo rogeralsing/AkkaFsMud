@@ -8,11 +8,12 @@ open Messages
 open Utils
 open Patterns
 
+type ThingState = {container:IActorRef; output: IActorRef }
+
 let thing (name:string) (mailbox: Actor<ThingMessage>)  = 
-    let mutable container : IActorRef = ActorRefs.Nobody :> IActorRef
-    let mutable output : IActorRef = ActorRefs.Nobody :> IActorRef
     let childFactory : IActorRefFactory = mailbox.Context :> IActorRefFactory
 
+    //TODO: make immutable and apart of state. ActorRef missing structural comp atm
     let content = new HashSet<_>(HashIdentity.Reference)
     let self = mailbox.Self
     
@@ -24,17 +25,17 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
         self <! ContainerNotify(message,except)
         ignore()
 
-    let rec loop() = actor {        
+    let rec loop(state: ThingState) = actor {        
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
         match message with
-        | SetOutput(o) -> output <- o
+        | SetOutput(newOutput) -> return! loop({state with output = newOutput})
         | GetName -> sender <! name
-        | Notify(message) -> output <! message      
-        | SetContainer(cont) ->
-            container <! ContainerRemove(self)
-            container <- cont
-            container <! ContainerAdd(self)
+        | Notify(message) -> state.output <! message      
+        | SetContainer(newContainer) ->
+            state.container <! ContainerRemove(self)
+            newContainer <! ContainerAdd(self)
+            return! loop({state with container = newContainer})
 
         | ContainerAdd(who) -> 
             if content.Add(who) then                 
@@ -60,9 +61,9 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
                 who <! Notify(Message("You see {0}",[names]))
             } |> workflow
 
-        | Look -> container <! ContainerLook(self)
+        | Look -> state.container <! ContainerLook(self)
         | Say(message) -> 
-            container <! ContainerNotify(Message("{0} says {1}",[name;message]), [self])
+            state.container <! ContainerNotify(Message("{0} says {1}",[name;message]), [self])
             notify(Message("You say {0}",[message]))
 
         | FindByName(nameToFind, except) -> 
@@ -78,7 +79,7 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
 
         | Take(nameOfObject) -> 
             async {
-                let! findResult = container.Ask<FindByNameResult>(FindByName(nameOfObject,[self]),TimeSpan.FromSeconds(1.0))
+                let! findResult = state.container.Ask<FindByNameResult>(FindByName(nameOfObject,[self]),TimeSpan.FromSeconds(1.0))
                 match findResult with
                 | NameFound(item,name) -> 
                     item <! SetContainer(self)
@@ -88,7 +89,8 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
             } |> workflow
  
         | o -> failwith ("unhandled message" + o.ToString())
-        return! loop()
+        return! loop(state)
     }
-    loop()
+    let nobody = ActorRefs.Nobody :> IActorRef
+    loop({container = nobody ; output = nobody})
 
