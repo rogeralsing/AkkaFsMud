@@ -16,26 +16,20 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
     //TODO: make immutable and apart of state. ActorRef missing structural comp atm
     let content = new HashSet<_>(HashIdentity.Reference)
     let self = mailbox.Self
-    
-    let notify message =
-        self <! Notify(message)
-        ignore()
-
-    let containerNotify message except =
-        self <! ContainerNotify(message,except)
-        ignore()
+    let notify message = self <! Notify(message)
+    let containerNotify message except = self <! ContainerNotify(message,except)
 
     let rec loop(state: ThingState) = actor {        
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
         match message with
-        | SetOutput(newOutput) -> return! loop({state with output = newOutput})
+        | SetOutput(newOutput) -> return! loop {state with output = newOutput}
         | GetName -> sender <! name
         | Notify(message) -> state.output <! message      
         | SetContainer(newContainer) ->
             state.container <! ContainerRemove(self)
             newContainer <! ContainerAdd(self)
-            return! loop({state with container = newContainer})
+            return! loop {state with container = newContainer}
 
         | ContainerAdd(who) -> 
             if content.Add(who) then                 
@@ -103,8 +97,8 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
                 self <! Notify(Message("You have {0}",[names]))
             } |> workflow
         | o -> failwith ("unhandled message" + o.ToString())
-        return! loop(state)
+        return! loop state
     }
     let nobody = ActorRefs.Nobody :> IActorRef
-    loop({container = nobody ; output = nobody})
+    loop {container = nobody ; output = nobody}
 
