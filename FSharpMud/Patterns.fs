@@ -43,7 +43,7 @@ let aggregate<'a> (actorFactory: IActorRefFactory) (targets: seq<IActorRef>) (me
         Task.FromResult([||])
     else
         let tcs = new TaskCompletionSource<(IActorRef * 'a)[]>()
-        let actor = spawn actorFactory "foo" (aggregator targets message tcs)
+        let actor = spawn actorFactory null (aggregator targets message tcs)
         tcs.Task
 
 let getObjectNames (actorFactory: IActorRefFactory) (targets: seq<IActorRef>) =
