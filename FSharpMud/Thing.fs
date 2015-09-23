@@ -13,6 +13,14 @@ type ThingState = {container:IActorRef; output: IActorRef }
 let thing (name:string) (mailbox: Actor<ThingMessage>)  = 
     let childFactory : IActorRefFactory = mailbox.Context :> IActorRefFactory
 
+    let findContentByName content except nameToFind = 
+        let res = content |> Seq.filter (fun no -> not (except |> Seq.contains no.ref) )
+        let cleanName = nameToFind |> RemovePrefix
+        let firstMatch = res |> Seq.tryFind (fun no -> no.name.ToLowerInvariant().Contains(cleanName)) 
+        match firstMatch with
+            | Some(no) -> NameFound(no.ref,no.name)
+            | None -> NameNotFound
+
     //TODO: make immutable and apart of state. ActorRef missing structural comp atm
     let content = new HashSet<NamedObject>()
     let self = mailbox.Self
@@ -57,12 +65,8 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
             notify(Message("You say {0}",[message]))
 
         | FindByName(nameToFind, except) -> 
-            let res = content //todo: fix except
-            let cleanName = nameToFind |> RemovePrefix
-            let firstMatch = res |> Seq.tryFind (fun no -> no.name.ToLowerInvariant().Contains(cleanName)) 
-            match firstMatch with
-            | Some(no) -> sender <! NameFound(no.ref,no.name)
-            | None -> sender <! NameNotFound
+            let res = findContentByName content except nameToFind
+            sender <! res
 
         | Take(nameOfObject) -> 
             async {
@@ -75,15 +79,12 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
 
             } |> workflow
         | Drop(nameOfObject) -> 
-            async {
-                let! findResult = self.Ask<FindByNameResult>(FindByName(nameOfObject,[]),TimeSpan.FromSeconds(1.0))
-                match findResult with
-                | NameFound(item,name) -> 
-                    item <! SetContainer(state.container)
-                    notify(Message("You drop {0}",[name]))
-                | NameNotFound -> notify(Message("Could not find {0}",[nameOfObject]))
-
-            } |> workflow
+            let findResult = findContentByName content [] nameOfObject
+            match findResult with
+            | NameFound(item,name) -> 
+                item <! SetContainer(state.container)
+                notify(Message("You drop {0}",[name]))
+            | NameNotFound -> notify(Message("Could not find {0}",[nameOfObject]))
         | Inventory ->
             let names = joinStrings (content |> Seq.map (fun no -> no.name) |> Seq.toArray)
             self <! Notify(Message("You have {0}",[names]))
