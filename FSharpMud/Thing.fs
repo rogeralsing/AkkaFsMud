@@ -2,28 +2,23 @@
 
 open Akka.Actor
 open Akka.FSharp
-open System
-open System.Collections.Generic
-open System.Threading.Tasks
 open Messages
 open Utils
 
 type ThingState = 
     { container : IActorRef
       output : IActorRef
-      objectsYouHave : list<NamedObject>
-      objectsYouSee : list<NamedObject> }
+      objectsYouHave : Set<NamedObject>
+      objectsYouSee : Set<NamedObject> }
 
 let thing (name : string) (mailbox : Actor<ThingMessage>) = 
-    
     let findContentByName objects nameToFind = 
-        let cleanName = nameToFind |> RemovePrefix
+        let cleanName = nameToFind |> removePrefix
         let firstMatch = objects |> Seq.tryFind (fun no -> no.name.ToLowerInvariant().Contains(cleanName))
         firstMatch
     
     let self = mailbox.Self
     let notify message = self <! Notify(message)
-    let containerNotify message except = self <! ContainerNotify(message, except)
     
     let namedSelf = 
         { name = name
@@ -41,13 +36,13 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
             | AddContent(who) -> 
                 for no in state.objectsYouHave |> Seq.except [ who ] do
                     no.ref <! AddedContent(who)
-                let newObjectsYouHave = who :: state.objectsYouHave
+                let newObjectsYouHave = state.objectsYouHave.Add who
                 who.ref <! ContainerContent(newObjectsYouHave)
                 return! loop { state with objectsYouHave = newObjectsYouHave }
             | RemoveContent(who) -> 
                 for no in state.objectsYouHave do
                     no.ref <! RemovedContent(who)
-                return! loop { state with objectsYouHave = state.objectsYouHave |> listRemove who }
+                return! loop { state with objectsYouHave = state.objectsYouHave.Remove who}
             | ContainerNotify(message, except) -> 
                 let targets = 
                     state.objectsYouHave
@@ -57,10 +52,10 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                     target <! Notify(message)
             | AddedContent(who) -> 
                 notify (Message("{0} appears", [ who.name ]))
-                return! loop { state with objectsYouSee = who :: state.objectsYouSee }
+                return! loop { state with objectsYouSee = state.objectsYouSee.Add who }
             | RemovedContent(who) -> 
                 notify (Message("{0} disappears", [ who.name ]))
-                return! loop { state with objectsYouSee = state.objectsYouSee |> listRemove who }
+                return! loop { state with objectsYouSee = state.objectsYouSee.Remove who }
             | ContainerContent(containerContent) -> 
                 self <! Look
                 return! loop { state with objectsYouSee = containerContent }
@@ -68,9 +63,9 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
             | Look -> 
                 let names = 
                     joinStrings (state.objectsYouSee
-                                 |> List.except [ namedSelf ]
-                                 |> List.map (fun no -> no.name)
-                                 |> List.toArray)
+                                 |> Seq.except [ namedSelf ]
+                                 |> Seq.map (fun no -> no.name)
+                                 |> Seq.toArray)
                 notify (Message("You see {0}", [ names ]))
             | Say(message) -> 
                 state.container <! ContainerNotify(Message("{0} says {1}", [ name; message ]), [ self ])
@@ -118,9 +113,9 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
             return! loop state
         }
     
-    let emptyList = List.empty<NamedObject>
+    let emptySet = Set.empty<NamedObject>
     let nobody = ActorRefs.Nobody :> IActorRef
     loop { container = nobody
            output = nobody
-           objectsYouHave = emptyList
-           objectsYouSee = emptyList }
+           objectsYouHave = emptySet
+           objectsYouSee = emptySet }
