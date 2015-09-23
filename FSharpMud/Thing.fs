@@ -27,28 +27,17 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
     let namedSelf = {name=name;ref = self}
     let rec loop(state: ThingState) = actor {        
         let! message = mailbox.Receive()
-        let sender = mailbox.Sender()
         match message with
-        
-        | GetName -> sender <! name
-   
+        | GetName(sender) -> sender <! name
         | SetContainer(newContainer) ->
-            state.container <! ContainerRemove(namedSelf)
-            newContainer <! ContainerAdd(namedSelf)
+            state.container <! ContainerRemove(namedSelf,self)
+            newContainer <! ContainerAdd(namedSelf,self)
             return! loop {state with container = newContainer}
 
-        | ContainerAdd(who) -> 
-            if content.Add(who) then                                 
-                containerNotify (Message ("{0} appears",[who.name])) [who.ref; sender]
-
-
-        | ContainerRemove(who) ->
-            if content.Remove(who) then                
-                containerNotify (Message ("{0} disappears",[who.name])) [who.ref; sender]
-                
+        | ContainerAdd(who,sender) -> if content.Add(who) then containerNotify (Message ("{0} appears",[who.name])) [who.ref; sender]
+        | ContainerRemove(who,sender) -> if content.Remove(who) then containerNotify (Message ("{0} disappears",[who.name])) [who.ref; sender]
         | Notify(message) -> state.output <! message
         | SetOutput(newOutput) -> return! loop {state with output = newOutput}   
-
         | ContainerNotify(message,except) ->
             let targets = content |> Seq.map(fun no -> no.ref) |> Seq.except except |> Seq.toArray
             for target in targets do target <! Notify(message)
@@ -64,7 +53,8 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
 
         | FindByName(nameToFind, except) -> 
             let res = findContentByName content except nameToFind
-            sender <! res
+            //used by an ask operation so we need dynamic sender
+            mailbox.Sender() <! res
 
         | Take(nameOfObject) -> 
             async {

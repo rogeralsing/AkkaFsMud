@@ -10,9 +10,9 @@ type ThingMessage =
 | SetOutput of IActorRef
 | SetContainer of IActorRef
 | ContainerLook of who : NamedObject
-| ContainerRemove of NamedObject
-| ContainerAdd of NamedObject
-| GetName
+| ContainerRemove of NamedObject * sender: IActorRef
+| ContainerAdd of NamedObject * sender: IActorRef
+| GetName of sender: IActorRef
 | Where
 | Inventory
 | Look
