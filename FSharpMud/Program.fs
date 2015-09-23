@@ -57,5 +57,13 @@ while true do
         | "inventory"
         | "inv" -> player <! Inventory  
         | "where" -> player <! Where
+        | "north"
+        | "n" -> player <! Go("north")
+        | "south"
+        | "s" -> player <! Go("south")
+        | "east"
+        | "e" -> player <! Go("east")
+        | "west"
+        | "w" -> player <! Go("west")
         | other -> printfn "unknown command %A" other
     | _ -> ignore()

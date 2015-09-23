@@ -33,12 +33,13 @@ type ThingMessage =
     | AddExit of NamedObject
     | AddContent of NamedObject
     | AddedContent of NamedObject
-    | RemoveContent of NamedObject
-    | RemovedContent of NamedObject
+    | RemoveContent of who : NamedObject * newContaner : NamedObject
+    | RemovedContent of who : NamedObject * newContaner : NamedObject
     | NewContainerAssigned of container: NamedObject * content: Set<NamedObject> * exits: Set<NamedObject>
     | Where
     | Inventory
     | Look
+    | Go of direction : string
     | Say of message : string
     | Notify of Message
     | ContainerNotify of Message * except : seq<IActorRef>
