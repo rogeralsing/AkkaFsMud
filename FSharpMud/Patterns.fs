@@ -46,35 +46,3 @@ let aggregate<'a> (actorFactory: IActorRefFactory) (targets: seq<IActorRef>) (me
         let actor = spawn actorFactory null (aggregator targets message tcs)
         tcs.Task
 
-let getObjectNames (actorFactory: IActorRefFactory) (targets: seq<IActorRef>) =
-    async {
-        let! names = Async.AwaitTask(aggregate<string> actorFactory targets GetName (TimeSpan.FromSeconds(1.0)))
-        return names
-    } 
-
-let aggregateStrings (actorFactory: IActorRefFactory) (targets: seq<IActorRef>) (message: obj) =    
-    async {
-        let! res = Async.AwaitTask(aggregate<string> actorFactory targets message (TimeSpan.FromSeconds(1.0)))
-        let strings = res 
-                      |> Seq.map (fun (a,b) -> b) 
-                      |> Seq.toArray
-
-        let str = 
-            match strings.Length with
-            | 0 -> "nothing"
-            | 1 -> strings.[0]
-            | _ ->
-                let allButLast = strings |> Seq.take (strings.Length-1)
-                let first = String.Join(", ",allButLast) 
-                let last = Array.last(strings)
-                first + " and " + last
-            
-        return str
-    }
-
-let aggregateNames (actorFactory: IActorRefFactory) (targets: seq<IActorRef>) =
-    async {
-        let! res = aggregateStrings actorFactory targets GetName
-        return res
-    }
-

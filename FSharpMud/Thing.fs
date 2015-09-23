@@ -21,7 +21,7 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
 
     //TODO: make immutable and apart of state. ActorRef missing structural comp atm
     let content = new HashSet<NamedObject>()
-    let content2 = new HashSet<NamedObject>()
+    let objectsYouSee = new HashSet<NamedObject>()
     let self = mailbox.Self
     let notify message = self <! Notify(message)
     let containerNotify message except = self <! ContainerNotify(message,except)
@@ -29,7 +29,6 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
     let rec loop(state: ThingState) = actor {        
         let! message = mailbox.Receive()
         match message with
-        | GetName(sender) -> sender <! name
         | SetContainer(newContainer) ->
             state.container <! ContainerRemove(namedSelf)
             newContainer <! ContainerAdd(namedSelf)
@@ -60,14 +59,8 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
         | Say(message) -> 
             state.container <! ContainerNotify(Message("{0} says {1}",[name;message]), [self])
             notify(Message("You say {0}",[message]))
-
-        | FindByName(nameToFind, except) -> 
-            let res = findContentByName content except nameToFind
-            //used by an ask operation so we need dynamic sender
-            mailbox.Sender() <! res
-
         | Take(nameOfObject) -> 
-            let findResult = findContentByName content2 [] nameOfObject
+            let findResult = findContentByName objectsYouSee [] nameOfObject
             match findResult with
             | Some(no) -> 
                 no.ref <! SetContainer(self)
@@ -88,16 +81,16 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
 
         | ContainerAdded(who) -> 
             notify(Message("{0} appears",[who.name]))
-            content2.Add(who) |> ignore
+            objectsYouSee.Add(who) |> ignore
 
         | ContainerRemoved(who) -> 
             notify(Message("{0} disappears",[who.name]))
-            content2.Remove(who) |> ignore
+            objectsYouSee.Remove(who) |> ignore
 
         | ContainerContent(containerContent) -> 
             let names = joinStrings (containerContent |> List.except [namedSelf] |> List.map(fun no -> no.name) |> List.toArray)
-            content2.Clear()
-            for no in containerContent do content2.Add (no) |> ignore
+            objectsYouSee.Clear()
+            for no in containerContent do objectsYouSee.Add (no) |> ignore
             notify(Message("You see {0}",[names]))
         | o -> failwith ("unhandled message" + o.ToString())
         return! loop state
