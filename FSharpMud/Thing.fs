@@ -29,33 +29,46 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
     let rec loop(state: ThingState) = actor {        
         let! message = mailbox.Receive()
         match message with
+        // Container actions
         | SetContainer(newContainer) ->
-            state.container <! ContainerRemove(namedSelf)
-            newContainer <! ContainerAdd(namedSelf)
+            state.container <! RemoveContent(namedSelf)
+            newContainer <! AddContent(namedSelf)
             return! loop {state with container = newContainer}
 
-        | ContainerAdd(who) -> 
+        | AddContent(who) -> 
             if content.Add(who) then 
-                self <! ContainerLook(who)
+                self <! DescribeContainer(who)
                 for no in content |> Seq.except [who] do
-                    no.ref <! ContainerAdded(who)                
+                    no.ref <! AddedContent(who)                
 
-        | ContainerRemove(who) -> 
+        | RemoveContent(who) -> 
             if content.Remove(who) then 
                 for no in content do
-                    no.ref <! ContainerRemoved(who)
-
-        | Notify(message) -> state.output <! message
-        | SetOutput(newOutput) -> return! loop {state with output = newOutput}   
+                    no.ref <! RemovedContent(who)
         | ContainerNotify(message,except) ->
             let targets = content |> Seq.map(fun no -> no.ref) |> Seq.except except |> Seq.toArray
             for target in targets do target <! Notify(message)
 
-        | ContainerLook(who) ->         
+        | DescribeContainer(who) ->         
             let copy = content |> Seq.toList //TODO: contents is currently mutable
-            who.ref <! ContainerContent(copy)                            
+            who.ref <! ContainerContent(copy)    
 
-        | Look -> state.container <! ContainerLook(namedSelf)
+        | AddedContent(who) -> 
+            notify(Message("{0} appears",[who.name]))
+            objectsYouSee.Add(who) |> ignore
+
+        | RemovedContent(who) -> 
+            notify(Message("{0} disappears",[who.name]))
+            objectsYouSee.Remove(who) |> ignore
+
+        | ContainerContent(containerContent) -> 
+            let names = joinStrings (containerContent |> List.except [namedSelf] |> List.map(fun no -> no.name) |> List.toArray)
+            objectsYouSee.Clear()
+            for no in containerContent do objectsYouSee.Add (no) |> ignore
+            notify(Message("You see {0}",[names]))    
+
+        //Player / NPC Actions
+        | Look -> state.container <! DescribeContainer(namedSelf)
         | Say(message) -> 
             state.container <! ContainerNotify(Message("{0} says {1}",[name;message]), [self])
             notify(Message("You say {0}",[message]))
@@ -79,19 +92,9 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
             let names = joinStrings (content |> Seq.map (fun no -> no.name) |> Seq.toArray)
             self <! Notify(Message("You have {0}",[names]))
 
-        | ContainerAdded(who) -> 
-            notify(Message("{0} appears",[who.name]))
-            objectsYouSee.Add(who) |> ignore
-
-        | ContainerRemoved(who) -> 
-            notify(Message("{0} disappears",[who.name]))
-            objectsYouSee.Remove(who) |> ignore
-
-        | ContainerContent(containerContent) -> 
-            let names = joinStrings (containerContent |> List.except [namedSelf] |> List.map(fun no -> no.name) |> List.toArray)
-            objectsYouSee.Clear()
-            for no in containerContent do objectsYouSee.Add (no) |> ignore
-            notify(Message("You see {0}",[names]))
+        //output stream actions
+        | Notify(message) -> state.output <! message
+        | SetOutput(newOutput) -> return! loop {state with output = newOutput}   
         | o -> failwith ("unhandled message" + o.ToString())
         return! loop state
     }

@@ -9,11 +9,11 @@ type Message =
 type ThingMessage =
 | SetOutput of IActorRef
 | SetContainer of IActorRef
-| ContainerLook of who : NamedObject
-| ContainerAdd of NamedObject
-| ContainerAdded of NamedObject
-| ContainerRemove of NamedObject
-| ContainerRemoved of NamedObject
+| DescribeContainer of who : NamedObject
+| AddContent of NamedObject
+| AddedContent of NamedObject
+| RemoveContent of NamedObject
+| RemovedContent of NamedObject
 | ContainerContent of List<NamedObject>
 | Where
 | Inventory
