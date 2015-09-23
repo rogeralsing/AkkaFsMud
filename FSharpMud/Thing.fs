@@ -7,7 +7,6 @@ open System.Collections.Generic
 open System.Threading.Tasks
 open Messages
 open Utils
-open Patterns
 
 type ThingState = 
     { container : IActorRef
