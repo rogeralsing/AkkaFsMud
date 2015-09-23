@@ -14,62 +14,55 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
     let childFactory : IActorRefFactory = mailbox.Context :> IActorRefFactory
 
     //TODO: make immutable and apart of state. ActorRef missing structural comp atm
-    let content = new HashSet<_>(HashIdentity.Reference)
+    let content = new HashSet<NamedObject>()
     let self = mailbox.Self
     let notify message = self <! Notify(message)
     let containerNotify message except = self <! ContainerNotify(message,except)
-
+    let namedSelf = {name=name;ref = self}
     let rec loop(state: ThingState) = actor {        
         let! message = mailbox.Receive()
         let sender = mailbox.Sender()
         match message with
-        | SetOutput(newOutput) -> return! loop {state with output = newOutput}
+        
         | GetName -> sender <! name
-        | Notify(message) -> state.output <! message      
+   
         | SetContainer(newContainer) ->
-            state.container <! ContainerRemove(self)
-            newContainer <! ContainerAdd(self)
+            state.container <! ContainerRemove(namedSelf)
+            newContainer <! ContainerAdd(namedSelf)
             return! loop {state with container = newContainer}
 
         | ContainerAdd(who) -> 
-            if content.Add(who) then                 
-                async {
-                    let! name = who.Ask<string>(GetName,TimeSpan.FromSeconds(1.0))
-                    containerNotify (Message ("{0} appears",[name])) [who; sender]
-                } |> workflow
+            if content.Add(who) then                                 
+                containerNotify (Message ("{0} appears",[who.name])) [who.ref; sender]
+
 
         | ContainerRemove(who) ->
             if content.Remove(who) then                
-                async {
-                    let! name = who.Ask<string>(GetName,TimeSpan.FromSeconds(1.0))
-                    containerNotify (Message ("{0} disappears",[name])) [who; sender]
-                } |> workflow 
+                containerNotify (Message ("{0} disappears",[who.name])) [who.ref; sender]
+                
+        | Notify(message) -> state.output <! message
+        | SetOutput(newOutput) -> return! loop {state with output = newOutput}   
 
         | ContainerNotify(message,except) ->
-            let targets = content |> Seq.except except |> Seq.toArray
+            let targets = content |> Seq.map(fun no -> no.ref) |> Seq.except except |> Seq.toArray
             for target in targets do target <! Notify(message)
 
-        | ContainerLook(who) ->                                       
-            async {
-                let! names = aggregateNames childFactory (content |> Seq.except [who])
-                who <! Notify(Message("You see {0}",[names]))
-            } |> workflow
+        | ContainerLook(who) ->         
+            let names = joinStrings (content |> Seq.except [who] |> Seq.map (fun no -> no.name) |> Seq.toArray )
+            who.ref <! Notify(Message("You have {0}",[names]))                              
 
-        | Look -> state.container <! ContainerLook(self)
+        | Look -> state.container <! ContainerLook(namedSelf)
         | Say(message) -> 
             state.container <! ContainerNotify(Message("{0} says {1}",[name;message]), [self])
             notify(Message("You say {0}",[message]))
 
         | FindByName(nameToFind, except) -> 
-            async {
-                let! res = getObjectNames childFactory (content |> Seq.except except )
-                let cleanName = nameToFind |> RemovePrefix
-                let firstMatch = res |> Seq.tryFind (fun (a,n) -> n.ToLowerInvariant().Contains(cleanName)) 
-                match firstMatch with
-                | Some(a,n) -> sender <! NameFound(a,n)
-                | None -> sender <! NameNotFound
-
-            } |> workflow
+            let res = content //todo: fix except
+            let cleanName = nameToFind |> RemovePrefix
+            let firstMatch = res |> Seq.tryFind (fun no -> no.name.ToLowerInvariant().Contains(cleanName)) 
+            match firstMatch with
+            | Some(no) -> sender <! NameFound(no.ref,no.name)
+            | None -> sender <! NameNotFound
 
         | Take(nameOfObject) -> 
             async {
@@ -92,10 +85,9 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
 
             } |> workflow
         | Inventory ->
-            async {
-                let! names = aggregateNames childFactory (content)
-                self <! Notify(Message("You have {0}",[names]))
-            } |> workflow
+            let names = joinStrings (content |> Seq.map (fun no -> no.name) |> Seq.toArray)
+            self <! Notify(Message("You have {0}",[names]))
+
         | o -> failwith ("unhandled message" + o.ToString())
         return! loop state
     }

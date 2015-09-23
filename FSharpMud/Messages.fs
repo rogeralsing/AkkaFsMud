@@ -1,6 +1,8 @@
 ﻿module Messages
 open Akka.Actor
 
+type NamedObject = {name: string; ref: IActorRef;}
+
 type FindByNameResult = 
 | NameFound of item:IActorRef * name:string
 | NameNotFound
@@ -11,9 +13,9 @@ type Message =
 type ThingMessage =
 | SetOutput of IActorRef
 | SetContainer of IActorRef
-| ContainerLook of who : IActorRef
-| ContainerRemove of IActorRef
-| ContainerAdd of IActorRef
+| ContainerLook of who : NamedObject
+| ContainerRemove of NamedObject
+| ContainerAdd of NamedObject
 | GetName
 | Where
 | Inventory

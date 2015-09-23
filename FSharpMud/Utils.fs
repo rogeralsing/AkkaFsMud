@@ -1,4 +1,5 @@
 ﻿module Utils
+open System
 
 let (|Prefix|_|) (p:string) (s:string) =
     if s.StartsWith(p) then
@@ -15,3 +16,14 @@ let RemovePrefix (name:string) =
 
 let workflow asy = 
     Async.StartImmediate <| asy
+
+let joinStrings (strings:string[]) = 
+        match strings.Length with
+        | 0 -> "nothing"
+        | 1 -> strings.[0]
+        | _ ->
+            let allButLast = strings |> Seq.take (strings.Length-1)
+            let first = String.Join(", ",allButLast) 
+            let last = Array.last(strings)
+            first + " and " + last
+                
