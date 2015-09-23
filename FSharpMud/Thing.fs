@@ -35,9 +35,9 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                 let newObjectsYouHave = state.objectsYouHave.Add who
                 who.ref <! NewContainerAssigned(namedSelf, newObjectsYouHave, state.exitsYouHave)
                 return! loop { state with objectsYouHave = newObjectsYouHave }
-            | RemoveContent(who,container) -> 
-                for no in state.objectsYouHave |> Seq.except [who] do
-                    no.ref <! RemovedContent(who,container)
+            | RemoveContent(who, container) -> 
+                for no in state.objectsYouHave |> Seq.except [ who ] do
+                    no.ref <! RemovedContent(who, container)
                 return! loop { state with objectsYouHave = state.objectsYouHave.Remove who }
             | ContainerNotify(message, except) -> 
                 let targets = 
@@ -49,8 +49,9 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
             | AddedContent(who) -> 
                 notify self "{0} appears" [ who.name ]
                 return! loop { state with objectsYouSee = state.objectsYouSee.Add who }
-            | RemovedContent(who,container) -> 
-                notify self "{0} disappears into {1}" [ who.name; container.name  ]
+            | RemovedContent(who, container) -> 
+                if container <> namedSelf && not (state.objectsYouHave.Contains container) then 
+                    notify self "{0} disappears into {1}" [ who.name; container.name ]
                 return! loop { state with objectsYouSee = state.objectsYouSee.Remove who }
             | NewContainerAssigned(container, containerContent, exits) -> 
                 self <! Look
@@ -65,11 +66,12 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                                  |> Seq.except [ namedSelf ]
                                  |> Seq.map (fun no -> no.name)
                                  |> Seq.toArray)
+                
                 let exitNames = 
                     joinStrings (state.exitsYouSee
                                  |> Seq.map (fun no -> no.name)
                                  |> Seq.toArray)
-
+                
                 notify self "You are in {0}" [ state.container.name ]
                 notify self "You see {0}" [ objectNames ]
                 notify self "Exits are: {0}" [ exitNames ]
@@ -112,11 +114,11 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                                  |> Seq.map (fun no -> no.name)
                                  |> Seq.toArray)
                 self <! Notify(Message("You have {0}", [ names ]))
-            | Go(direction) ->
+            | Go(direction) -> 
                 let exit = findObjectByName state.exitsYouSee direction
                 match exit with
                 | Some(no) -> no.ref <! AddContent(namedSelf)
-                | None -> notify self "You can not go {0}" [direction]
+                | None -> notify self "You can not go {0}" [ direction ]
             //output stream actions
             | Notify(message) -> state.output <! message
             | SetOutput(newOutput) -> return! loop { state with output = newOutput }

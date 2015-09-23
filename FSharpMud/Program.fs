@@ -17,6 +17,7 @@ let goblin = spawn system "goblin" (thing "a goblin")
 let player = spawn system "player" (thing "Player1")
 let sword = spawn system "sword" (thing "a sword")
 let helmet = spawn system "helmet" (thing "a rusty helmet")
+let backpack = spawn system "backpack" (thing "a brown leather backpack")
 
 kitchen <! AddExit({name="north";ref=livingroom})
 livingroom <! AddExit({name="south";ref=kitchen})
@@ -27,6 +28,7 @@ goblin <! SetContainerByActorRef(kitchen)
 gandalf <! SetContainerByActorRef(kitchen)
 sword <! SetContainerByActorRef(kitchen)
 helmet <! SetContainerByActorRef(kitchen)
+backpack <! SetContainerByActorRef(livingroom)
 
 
 while true do
