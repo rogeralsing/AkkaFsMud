@@ -15,12 +15,10 @@ type ThingState =
       objectsYouSee : list<NamedObject> }
 
 let thing (name : string) (mailbox : Actor<ThingMessage>) = 
-    let childFactory : IActorRefFactory = mailbox.Context :> IActorRefFactory
     
-    let findContentByName objectsYouHave except nameToFind = 
-        let res = objectsYouHave |> Seq.filter (fun no -> not (except |> Seq.contains no.ref))
+    let findContentByName objects nameToFind = 
         let cleanName = nameToFind |> RemovePrefix
-        let firstMatch = res |> Seq.tryFind (fun no -> no.name.ToLowerInvariant().Contains(cleanName))
+        let firstMatch = objects |> Seq.tryFind (fun no -> no.name.ToLowerInvariant().Contains(cleanName))
         firstMatch
     
     let self = mailbox.Self
@@ -41,10 +39,11 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                 newContainer <! AddContent(namedSelf)
                 return! loop { state with container = newContainer }
             | AddContent(who) -> 
-                self <! DescribeContainer(who)
                 for no in state.objectsYouHave |> Seq.except [ who ] do
                     no.ref <! AddedContent(who)
-                return! loop { state with objectsYouHave = who :: state.objectsYouHave }
+                let newObjectsYouHave = who :: state.objectsYouHave
+                who.ref <! ContainerContent(newObjectsYouHave)
+                return! loop { state with objectsYouHave = newObjectsYouHave }
             | RemoveContent(who) -> 
                 for no in state.objectsYouHave do
                     no.ref <! RemovedContent(who)
@@ -56,9 +55,6 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                     |> Seq.except except
                 for target in targets do
                     target <! Notify(message)
-            | DescribeContainer(who) -> 
-                let copy = state.objectsYouHave
-                who.ref <! ContainerContent(copy)
             | AddedContent(who) -> 
                 notify (Message("{0} appears", [ who.name ]))
                 return! loop { state with objectsYouSee = who :: state.objectsYouSee }
@@ -66,27 +62,28 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                 notify (Message("{0} disappears", [ who.name ]))
                 return! loop { state with objectsYouSee = state.objectsYouSee |> listRemove who }
             | ContainerContent(containerContent) -> 
+                self <! Look
+                return! loop { state with objectsYouSee = containerContent }
+            //Player / NPC Actions
+            | Look -> 
                 let names = 
-                    joinStrings (containerContent
+                    joinStrings (state.objectsYouSee
                                  |> List.except [ namedSelf ]
                                  |> List.map (fun no -> no.name)
                                  |> List.toArray)
                 notify (Message("You see {0}", [ names ]))
-                return! loop { state with objectsYouSee = containerContent }
-            //Player / NPC Actions
-            | Look -> state.container <! DescribeContainer(namedSelf)
             | Say(message) -> 
                 state.container <! ContainerNotify(Message("{0} says {1}", [ name; message ]), [ self ])
                 notify (Message("You say {0}", [ message ]))
             | Take(nameOfObject) -> 
-                let findResult = findContentByName state.objectsYouSee [] nameOfObject
+                let findResult = findContentByName state.objectsYouSee nameOfObject
                 match findResult with
                 | Some(no) -> 
                     no.ref <! SetContainer(self)
                     notify (Message("You take {0}", [ no.name ]))
                 | None -> notify (Message("Could not find {0}", [ nameOfObject ]))
             | Drop(nameOfObject) -> 
-                let findResult = findContentByName state.objectsYouHave [] nameOfObject
+                let findResult = findContentByName state.objectsYouHave nameOfObject
                 match findResult with
                 | Some(no) -> 
                     no.ref <! SetContainer(state.container)
@@ -98,10 +95,10 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                      |> Seq.append state.objectsYouHave
                      |> Seq.except [ namedSelf ])
                 
-                let findResult = findContentByName targets [] nameOfTarget
+                let findResult = findContentByName targets nameOfTarget
                 match findResult with
                 | Some(no1) -> 
-                    let findResult2 = findContentByName targets [] nameOfContainer
+                    let findResult2 = findContentByName targets nameOfContainer
                     match findResult2 with
                     | Some(no2) -> 
                         no1.ref <! SetContainer(no2.ref)
