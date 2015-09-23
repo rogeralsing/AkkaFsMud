@@ -6,19 +6,17 @@ open Messages
 open Utils
 
 type ThingState = 
-    { container : IActorRef
+    { container : NamedObject
       output : IActorRef
       objectsYouHave : Set<NamedObject>
-      objectsYouSee : Set<NamedObject> }
+      objectsYouSee : Set<NamedObject>
+      exitsYouHave : Set<NamedObject>
+      exitsYouSee : Set<NamedObject> }
+
+let notify target format (args : List<obj>) = target <! Notify(Message(format, args))
 
 let thing (name : string) (mailbox : Actor<ThingMessage>) = 
-    let findContentByName objects nameToFind = 
-        let cleanName = nameToFind |> removePrefix
-        let firstMatch = objects |> Seq.tryFind (fun no -> no.name.ToLowerInvariant().Contains(cleanName))
-        firstMatch
-    
     let self = mailbox.Self
-    let notify message = self <! Notify(message)
     
     let namedSelf = 
         { name = name
@@ -29,20 +27,18 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
             let! message = mailbox.Receive()
             match message with
             // Container actions
-            | SetContainer(newContainer) -> 
-                state.container <! RemoveContent(namedSelf)
-                newContainer <! AddContent(namedSelf)
-                return! loop { state with container = newContainer }
+            | AddExit(exit) -> return! loop { state with exitsYouHave = state.exitsYouHave.Add(exit) }
+            | SetContainerByActorRef(newContainer) -> newContainer <! AddContent(namedSelf)
             | AddContent(who) -> 
-                for no in state.objectsYouHave |> Seq.except [ who ] do
+                for no in state.objectsYouHave do
                     no.ref <! AddedContent(who)
                 let newObjectsYouHave = state.objectsYouHave.Add who
-                who.ref <! ContainerContent(newObjectsYouHave)
+                who.ref <! NewContainerAssigned(namedSelf, newObjectsYouHave, state.exitsYouHave)
                 return! loop { state with objectsYouHave = newObjectsYouHave }
             | RemoveContent(who) -> 
                 for no in state.objectsYouHave do
                     no.ref <! RemovedContent(who)
-                return! loop { state with objectsYouHave = state.objectsYouHave.Remove who}
+                return! loop { state with objectsYouHave = state.objectsYouHave.Remove who }
             | ContainerNotify(message, except) -> 
                 let targets = 
                     state.objectsYouHave
@@ -51,55 +47,65 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                 for target in targets do
                     target <! Notify(message)
             | AddedContent(who) -> 
-                notify (Message("{0} appears", [ who.name ]))
+                notify self "{0} appears" [ who.name ]
                 return! loop { state with objectsYouSee = state.objectsYouSee.Add who }
             | RemovedContent(who) -> 
-                notify (Message("{0} disappears", [ who.name ]))
+                notify self "{0} disappears" [ who.name ]
                 return! loop { state with objectsYouSee = state.objectsYouSee.Remove who }
-            | ContainerContent(containerContent) -> 
+            | NewContainerAssigned(container, containerContent, exits) -> 
                 self <! Look
-                return! loop { state with objectsYouSee = containerContent }
+                state.container.ref <! RemoveContent(namedSelf)
+                return! loop { state with container = container
+                                          objectsYouSee = containerContent
+                                          exitsYouSee = exits }
             //Player / NPC Actions
             | Look -> 
-                let names = 
+                let objectNames = 
                     joinStrings (state.objectsYouSee
                                  |> Seq.except [ namedSelf ]
                                  |> Seq.map (fun no -> no.name)
                                  |> Seq.toArray)
-                notify (Message("You see {0}", [ names ]))
+                let exitNames = 
+                    joinStrings (state.exitsYouSee
+                                 |> Seq.map (fun no -> no.name)
+                                 |> Seq.toArray)
+
+                notify self "You are in {0}" [ state.container.name ]
+                notify self "You see {0}" [ objectNames ]
+                notify self "Exits are: {0}" [ exitNames ]
             | Say(message) -> 
-                state.container <! ContainerNotify(Message("{0} says {1}", [ name; message ]), [ self ])
-                notify (Message("You say {0}", [ message ]))
+                state.container.ref <! ContainerNotify(Message("{0} says {1}", [ name; message ]), [ self ])
+                notify self "You say {0}" [ message ]
             | Take(nameOfObject) -> 
-                let findResult = findContentByName state.objectsYouSee nameOfObject
+                let findResult = findObjectByName state.objectsYouSee nameOfObject
                 match findResult with
                 | Some(no) -> 
-                    no.ref <! SetContainer(self)
-                    notify (Message("You take {0}", [ no.name ]))
-                | None -> notify (Message("Could not find {0}", [ nameOfObject ]))
+                    self <! AddContent(no)
+                    notify self "You take {0}" [ no.name ]
+                | None -> notify self "Could not find {0}" [ nameOfObject ]
             | Drop(nameOfObject) -> 
-                let findResult = findContentByName state.objectsYouHave nameOfObject
+                let findResult = findObjectByName state.objectsYouHave nameOfObject
                 match findResult with
                 | Some(no) -> 
-                    no.ref <! SetContainer(state.container)
-                    notify (Message("You drop {0}", [ no.name ]))
-                | None -> notify (Message("Could not find {0}", [ nameOfObject ]))
+                    state.container.ref <! AddContent(no)
+                    notify self "You drop {0}" [ no.name ]
+                | None -> notify self "Could not find {0}" [ nameOfObject ]
             | Put(nameOfTarget, nameOfContainer) -> 
                 let targets = 
                     (state.objectsYouSee
                      |> Seq.append state.objectsYouHave
                      |> Seq.except [ namedSelf ])
                 
-                let findResult = findContentByName targets nameOfTarget
+                let findResult = findObjectByName targets nameOfTarget
                 match findResult with
                 | Some(no1) -> 
-                    let findResult2 = findContentByName targets nameOfContainer
+                    let findResult2 = findObjectByName targets nameOfContainer
                     match findResult2 with
                     | Some(no2) -> 
-                        no1.ref <! SetContainer(no2.ref)
-                        notify (Message("You put {0} in {1}", [ no1.name; no2.name ]))
-                    | None -> notify (Message("Could not find {0}", [ nameOfContainer ]))
-                | None -> notify (Message("Could not find {0}", [ nameOfTarget ]))
+                        no2.ref <! AddContent(no1)
+                        notify self "You put {0} in {1}" [ no1.name; no2.name ]
+                    | None -> notify self "Could not find {0}" [ nameOfContainer ]
+                | None -> notify self "Could not find {0}" [ nameOfTarget ]
             | Inventory -> 
                 let names = 
                     joinStrings (state.objectsYouHave
@@ -109,13 +115,25 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
             //output stream actions
             | Notify(message) -> state.output <! message
             | SetOutput(newOutput) -> return! loop { state with output = newOutput }
-            | o -> failwith ("unhandled message" + o.ToString())
+            | Where -> notify self "You are in {0}" [ state.container.name ]
+            | Fight(nameOfTarget) -> failwith "Not implemented yet"
+            | SetTarget(_) -> failwith "Not implemented yet"
+            | AttackCurrentTarget -> failwith "Not implemented yet"
+            | TakeDamage(attacker, damage) -> failwith "Not implemented yet"
+            | NotifyCombatStatus -> failwith "Not implemented yet"
+            | Died -> failwith "Not implemented yet"
             return! loop state
         }
     
     let emptySet = Set.empty<NamedObject>
     let nobody = ActorRefs.Nobody :> IActorRef
-    loop { container = nobody
+    
+    let namedNobody = 
+        { name = "void"
+          ref = nobody }
+    loop { container = namedNobody
            output = nobody
            objectsYouHave = emptySet
-           objectsYouSee = emptySet }
+           objectsYouSee = emptySet
+           exitsYouHave = emptySet
+           exitsYouSee = emptySet }

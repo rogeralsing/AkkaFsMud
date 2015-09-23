@@ -11,18 +11,23 @@ let system = System.create "my-system" (Configuration.load())
 
 let output = spawn system "output" (outputHandler)
 let kitchen = spawn system "kitchen" (thing "the kitchen")
+let livingroom = spawn system "livingroom" (thing "the living room")
 let gandalf = spawn system "gandalf" (thing "Gandalf")
 let goblin = spawn system "goblin" (thing "a goblin")
 let player = spawn system "player" (thing "Player1")
 let sword = spawn system "sword" (thing "a sword")
 let helmet = spawn system "helmet" (thing "a rusty helmet")
 
+kitchen <! AddExit({name="north";ref=livingroom})
+livingroom <! AddExit({name="south";ref=kitchen})
+
 player <! SetOutput(output)
-player <! SetContainer(kitchen)
-goblin <! SetContainer(kitchen)
-gandalf <! SetContainer(kitchen)
-sword <! SetContainer(kitchen)
-helmet <! SetContainer(kitchen)
+player <! SetContainerByActorRef(kitchen)
+goblin <! SetContainerByActorRef(kitchen)
+gandalf <! SetContainerByActorRef(kitchen)
+sword <! SetContainerByActorRef(kitchen)
+helmet <! SetContainerByActorRef(kitchen)
+
 
 while true do
     let input = Console.ReadLine()
@@ -51,5 +56,6 @@ while true do
         | "l" -> player <! Look 
         | "inventory"
         | "inv" -> player <! Inventory  
+        | "where" -> player <! Where
         | other -> printfn "unknown command %A" other
     | _ -> ignore()
