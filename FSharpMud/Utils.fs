@@ -26,4 +26,6 @@ let joinStrings (strings:string[]) =
             let first = String.Join(", ",allButLast) 
             let last = Array.last(strings)
             first + " and " + last
-                
+    
+let listRemove item list = 
+    list |> List.filter(fun i -> not (item = i))
