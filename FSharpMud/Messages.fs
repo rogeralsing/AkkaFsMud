@@ -3,10 +3,6 @@ open Akka.Actor
 
 type NamedObject = {name: string; ref: IActorRef;}
 
-type FindByNameResult = 
-| NameFound of item:IActorRef * name:string
-| NameNotFound
-
 type Message = 
 | Message of format: string * args: list<obj>
 

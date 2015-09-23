@@ -17,9 +17,7 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
         let res = content |> Seq.filter (fun no -> not (except |> Seq.contains no.ref) )
         let cleanName = nameToFind |> RemovePrefix
         let firstMatch = res |> Seq.tryFind (fun no -> no.name.ToLowerInvariant().Contains(cleanName)) 
-        match firstMatch with
-            | Some(no) -> NameFound(no.ref,no.name)
-            | None -> NameNotFound
+        firstMatch
 
     //TODO: make immutable and apart of state. ActorRef missing structural comp atm
     let content = new HashSet<NamedObject>()
@@ -70,21 +68,21 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
 
         | Take(nameOfObject) -> 
             async {
-                let! findResult = state.container.Ask<FindByNameResult>(FindByName(nameOfObject,[self]),TimeSpan.FromSeconds(1.0))
+                let! findResult = state.container.Ask<Option<NamedObject>>(FindByName(nameOfObject,[self]),TimeSpan.FromSeconds(1.0))
                 match findResult with
-                | NameFound(item,name) -> 
-                    item <! SetContainer(self)
-                    notify(Message("You take {0}",[name]))
-                | NameNotFound -> notify(Message("Could not find {0}",[nameOfObject]))
+                | Some(no) -> 
+                    no.ref <! SetContainer(self)
+                    notify(Message("You take {0}",[no.name]))
+                | None -> notify(Message("Could not find {0}",[nameOfObject]))
 
             } |> workflow
         | Drop(nameOfObject) -> 
             let findResult = findContentByName content [] nameOfObject
             match findResult with
-            | NameFound(item,name) -> 
-                item <! SetContainer(state.container)
-                notify(Message("You drop {0}",[name]))
-            | NameNotFound -> notify(Message("Could not find {0}",[nameOfObject]))
+            | Some(no) -> 
+                no.ref <! SetContainer(state.container)
+                notify(Message("You drop {0}",[no.name]))
+            | None -> notify(Message("Could not find {0}",[nameOfObject]))
         | Inventory ->
             let names = joinStrings (content |> Seq.map (fun no -> no.name) |> Seq.toArray)
             self <! Notify(Message("You have {0}",[names]))
