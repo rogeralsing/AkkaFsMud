@@ -87,6 +87,19 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
                 no.ref <! SetContainer(state.container)
                 notify(Message("You drop {0}",[no.name]))
             | None -> notify(Message("Could not find {0}",[nameOfObject]))
+        | Put(nameOfTarget,nameOfContainer) -> 
+            let findResult = findContentByName (objectsYouSee |> Seq.append content) [] nameOfTarget
+            match findResult with
+            | Some(no1) -> 
+                let findResult2 = findContentByName (objectsYouSee |> Seq.append content) [] nameOfContainer
+                match findResult2 with
+                | Some(no2) -> 
+                    no1.ref <! SetContainer(no2.ref)
+                    notify(Message("You put {0} in {1}",[no1.name; no2.name]))
+
+                | None -> notify(Message("Could not find {0}",[nameOfContainer]))
+
+            | None -> notify(Message("Could not find {0}",[nameOfTarget]))
 
         | Inventory ->
             let names = joinStrings (content |> Seq.map (fun no -> no.name) |> Seq.toArray)

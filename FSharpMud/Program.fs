@@ -39,6 +39,11 @@ while true do
         | "t" -> player <! Take(msg)
         | "drop"
         | "d" -> player <! Drop(msg)
+        | "put" when msg.Contains(" in ") -> 
+            let parts = msg.Split([|" in "|],2,StringSplitOptions.RemoveEmptyEntries)
+            let target = parts.[0]
+            let container = parts.[1]
+            player <! Put(target,container)
         | other -> printfn "unknown command %A" other
     | Some(str),None ->        
         match str with
