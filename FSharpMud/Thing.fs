@@ -21,6 +21,7 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
 
     //TODO: make immutable and apart of state. ActorRef missing structural comp atm
     let content = new HashSet<NamedObject>()
+    let content2 = new HashSet<NamedObject>()
     let self = mailbox.Self
     let notify message = self <! Notify(message)
     let containerNotify message except = self <! ContainerNotify(message,except)
@@ -30,12 +31,21 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
         match message with
         | GetName(sender) -> sender <! name
         | SetContainer(newContainer) ->
-            state.container <! ContainerRemove(namedSelf,self)
-            newContainer <! ContainerAdd(namedSelf,self)
+            state.container <! ContainerRemove(namedSelf)
+            newContainer <! ContainerAdd(namedSelf)
             return! loop {state with container = newContainer}
 
-        | ContainerAdd(who,sender) -> if content.Add(who) then containerNotify (Message ("{0} appears",[who.name])) [who.ref; sender]
-        | ContainerRemove(who,sender) -> if content.Remove(who) then containerNotify (Message ("{0} disappears",[who.name])) [who.ref; sender]
+        | ContainerAdd(who) -> 
+            if content.Add(who) then 
+                self <! ContainerLook(who)
+                for no in content |> Seq.except [who] do
+                    no.ref <! ContainerAdded(who)                
+
+        | ContainerRemove(who) -> 
+            if content.Remove(who) then 
+                for no in content do
+                    no.ref <! ContainerRemoved(who)
+
         | Notify(message) -> state.output <! message
         | SetOutput(newOutput) -> return! loop {state with output = newOutput}   
         | ContainerNotify(message,except) ->
@@ -43,8 +53,8 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
             for target in targets do target <! Notify(message)
 
         | ContainerLook(who) ->         
-            let names = joinStrings (content |> Seq.except [who] |> Seq.map (fun no -> no.name) |> Seq.toArray )
-            who.ref <! Notify(Message("You have {0}",[names]))                              
+            let copy = content |> Seq.toList //TODO: contents is currently mutable
+            who.ref <! ContainerContent(copy)                            
 
         | Look -> state.container <! ContainerLook(namedSelf)
         | Say(message) -> 
@@ -57,15 +67,13 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
             mailbox.Sender() <! res
 
         | Take(nameOfObject) -> 
-            async {
-                let! findResult = state.container.Ask<Option<NamedObject>>(FindByName(nameOfObject,[self]),TimeSpan.FromSeconds(1.0))
-                match findResult with
-                | Some(no) -> 
-                    no.ref <! SetContainer(self)
-                    notify(Message("You take {0}",[no.name]))
-                | None -> notify(Message("Could not find {0}",[nameOfObject]))
+            let findResult = findContentByName content2 [] nameOfObject
+            match findResult with
+            | Some(no) -> 
+                no.ref <! SetContainer(self)
+                notify(Message("You take {0}",[no.name]))
+            | None -> notify(Message("Could not find {0}",[nameOfObject]))
 
-            } |> workflow
         | Drop(nameOfObject) -> 
             let findResult = findContentByName content [] nameOfObject
             match findResult with
@@ -73,10 +81,24 @@ let thing (name:string) (mailbox: Actor<ThingMessage>)  =
                 no.ref <! SetContainer(state.container)
                 notify(Message("You drop {0}",[no.name]))
             | None -> notify(Message("Could not find {0}",[nameOfObject]))
+
         | Inventory ->
             let names = joinStrings (content |> Seq.map (fun no -> no.name) |> Seq.toArray)
             self <! Notify(Message("You have {0}",[names]))
 
+        | ContainerAdded(who) -> 
+            notify(Message("{0} appears",[who.name]))
+            content2.Add(who) |> ignore
+
+        | ContainerRemoved(who) -> 
+            notify(Message("{0} disappears",[who.name]))
+            content2.Remove(who) |> ignore
+
+        | ContainerContent(containerContent) -> 
+            let names = joinStrings (containerContent |> List.except [namedSelf] |> List.map(fun no -> no.name) |> List.toArray)
+            content2.Clear()
+            for no in containerContent do content2.Add (no) |> ignore
+            notify(Message("You see {0}",[names]))
         | o -> failwith ("unhandled message" + o.ToString())
         return! loop state
     }
