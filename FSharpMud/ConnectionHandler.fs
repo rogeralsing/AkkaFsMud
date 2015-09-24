@@ -6,10 +6,12 @@ open Akka.FSharp
 open System.Net
 open Thing
 open Messages
+open System.Text
 
 let connectionHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<obj>) = 
     mailbox.Context.Watch connection |> ignore
     let player = spawn mailbox.Context.System null (thing "player")
+    let sb = new StringBuilder()
     player <! SetOutput(mailbox.Self)
     player <! SetContainerByActorRef(startRoom)
     let rec loop() = 
@@ -24,8 +26,15 @@ let connectionHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActor
                     let byteString = ByteString.Create(bytes,0,bytes.Length)
                     connection <! (Tcp.Write.Create(byteString))
             | :? Tcp.Received as received -> 
-                let text = System.Text.Encoding.UTF8.GetString(received.Data.ToArray()).Trim();
-                printfn "Received %A" text
+                let text = System.Text.Encoding.UTF8.GetString(received.Data.ToArray());
+                sb.Append(text) |> ignore
+                let all = sb.ToString()
+                let enter = all.IndexOf('\r')
+                if enter >= 0 then
+                    let command = all.Substring(0,enter)
+                    sb.Remove(0,enter+2) |> ignore
+                    handleInput player command
+
             | :? Tcp.ConnectionClosed -> 
                 printfn "Stopped, remote connection [%A] closed" remote
                 mailbox.Context.Stop mailbox.Self
