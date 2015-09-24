@@ -19,9 +19,10 @@ let connectionHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActor
             | :? Message as msg -> 
                 match msg with
                 | Message(format,args) ->
-                    let string = System.String.Format(format,args |> List.toArray)
-                    let bytes = System.Text.Encoding.ASCII.GetBytes(string)                    
-                    mailbox.Sender() <! (Tcp.Write.Create(ByteString.Create(bytes)));
+                    let str = System.String.Format(format,args |> List.toArray) + "\r\n"
+                    let bytes = System.Text.Encoding.UTF8.GetBytes(str)  
+                    let byteString = ByteString.Create(bytes,0,bytes.Length)
+                    connection <! (Tcp.Write.Create(byteString))
             | :? Tcp.Received as received -> 
                 let text = System.Text.Encoding.UTF8.GetString(received.Data.ToArray()).Trim();
                 printfn "Received %A" text
