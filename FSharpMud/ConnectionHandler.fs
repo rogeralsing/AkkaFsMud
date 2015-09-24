@@ -21,7 +21,7 @@ let connectionHandler (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<
             | :? Terminated -> 
                 printfn "Stopped, remote connection [%A] died" remote
                 mailbox.Context.Stop mailbox.Self
-            | _ -> failwith "unknown"    
+            | _ -> ()
             return! loop()
         }
     loop()
