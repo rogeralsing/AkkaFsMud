@@ -22,8 +22,8 @@ let connectionHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActor
             | :? Message as msg -> 
                 match msg with
                 | Message(format,args) ->
-                    let f = formatAnsi ("{reset}" + format)
-                    let str = System.String.Format(f,args |> List.toArray) + "\r\n"
+                    let f = formatAnsi format
+                    let str = formatAnsi (System.String.Format(f,args |> List.toArray) + "\r\n")
                     let bytes = System.Text.Encoding.UTF8.GetBytes(str)  
                     let byteString = ByteString.Create(bytes,0,bytes.Length)
                     connection <! (Tcp.Write.Create(byteString))

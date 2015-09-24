@@ -1,4 +1,5 @@
 ﻿module AnsiSupport
+open System
 
 let ansiColors = 
     [ (// Our reset values turns everything to the default mode
@@ -48,3 +49,10 @@ let removeAnsi (input:string) =
     for (name,_,_) in ansiColors do
         str <- str.Replace(name,"")
     str
+
+type String with
+    member this.yellow =
+        "{yellow}" + this + "{reset}"
+    member this.green =
+        "{green}" + this + "{reset}"
+        

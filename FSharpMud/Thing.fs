@@ -5,7 +5,7 @@ open Akka.FSharp
 open Messages
 open Utils
 open System
-
+open AnsiSupport
 
 let handleInput player (input:string) =
     let parts = input.Split([|' '|],2,StringSplitOptions.None)
@@ -92,11 +92,11 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                 for target in targets do
                     target <! Notify(message)
             | AddedContent(who) -> 
-                notify self "{yellow}{0}{reset} appears" [ who.name ]
+                notify self "{0} appears" [ who.name.yellow ]
                 return! loop { state with objectsYouSee = state.objectsYouSee.Add who }
             | RemovedContent(who, container) -> 
                 if container <> namedSelf && not (state.objectsYouHave.Contains container) then 
-                    notify self "{yellow}{0}{reset} disappears into {yellow}{1}{reset}" [ who.name; container.name ]
+                    notify self "{0} disappears into {1}" [ who.name.yellow; container.name.yellow ]
                 return! loop { state with objectsYouSee = state.objectsYouSee.Remove who }
             | NewContainerAssigned(container, containerContent, exits) -> 
                 self <! Look
@@ -109,34 +109,34 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                 let objectNames = 
                     joinStrings (state.objectsYouSee
                                  |> Seq.except [ namedSelf ]
-                                 |> Seq.map (fun no -> "{yellow}" + no.name + "{reset}")
+                                 |> Seq.map (fun no -> no.name.yellow)
                                  |> Seq.toArray)
                 
                 let exitNames = 
                     joinStrings (state.exitsYouSee
-                                 |> Seq.map (fun no -> "{yellow}" + no.name + "{reset}")
+                                 |> Seq.map (fun no -> no.name.yellow)
                                  |> Seq.toArray)
                 
-                notify self "You are in {yellow}{0}{reset}" [ state.container.name ]
+                notify self "You are in {0}" [ state.container.name.yellow ]
                 notify self ("You see " + objectNames) [  ]
                 notify self ("Exits are: " + exitNames) [  ]
             | Say(message) -> 
-                state.container.ref <! ContainerNotify(Message("{yellow}{0}{reset} says {yellow}{1}{reset}", [ name; message ]), [ self ])
-                notify self "You say {yellow}{0}{reset}" [ message ]
+                state.container.ref <! ContainerNotify(Message("{0} says {1}", [ name.yellow; message.green ]), [ self ])
+                notify self "You say {0}" [ message.green ]
             | Take(nameOfObject) -> 
                 let findResult = findObjectByName state.objectsYouSee nameOfObject
                 match findResult with
                 | Some(no) -> 
                     self <! AddContent(no)
-                    notify self "You take {yellow}{0}{reset}" [ no.name ]
-                | None -> notify self "Could not find {yellow}{0}{reset}" [ nameOfObject ]
+                    notify self "You take {0}" [ no.name.yellow ]
+                | None -> notify self "Could not find {0}" [ nameOfObject ]
             | Enter(nameOfObject) -> 
                 let findResult = findObjectByName state.objectsYouSee nameOfObject
                 match findResult with
                 | Some(no) -> 
                     no.ref <! AddContent(namedSelf)
-                    notify self "You enter {yellow}{0}{reset}" [ no.name ]
-                | None -> notify self "Could not find {yellow}{0}{reset}" [ nameOfObject ]
+                    notify self "You enter {0}" [ no.name.yellow ]
+                | None -> notify self "Could not find {0}" [ nameOfObject.yellow ]
             | Exit -> state.container.ref <! ExitContainer(namedSelf)
             | ExitContainer(who) -> state.container.ref <! AddContent(who)
             | Drop(nameOfObject) -> 
@@ -144,8 +144,8 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                 match findResult with
                 | Some(no) -> 
                     state.container.ref <! AddContent(no)
-                    notify self "You drop {yellow}{0}{reset}" [ no.name ]
-                | None -> notify self "Could not find {yellow}{0}{reset}" [ nameOfObject ]
+                    notify self "You drop {0}" [ no.name.yellow ]
+                | None -> notify self "Could not find {0}" [ nameOfObject.yellow ]
             | Put(nameOfTarget, nameOfContainer) -> 
                 let targets = 
                     (state.objectsYouSee
@@ -159,24 +159,24 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                     match findResult2 with
                     | Some(no2) -> 
                         no2.ref <! AddContent(no1)
-                        notify self "You put {yellow}{0}{reset} in {yellow}{1}{reset}" [ no1.name; no2.name ]
-                    | None -> notify self "Could not find {yellow}{0}{reset}" [ nameOfContainer ]
-                | None -> notify self "Could not find {yellow}{0}{reset}" [ nameOfTarget ]
+                        notify self "You put {0} in {1}" [ no1.name.yellow; no2.name.yellow ]
+                    | None -> notify self "Could not find {0}" [ nameOfContainer.yellow ]
+                | None -> notify self "Could not find {0}" [ nameOfTarget.yellow ]
             | Inventory -> 
                 let names = 
                     joinStrings (state.objectsYouHave
-                                 |> Seq.map (fun no -> "{yellow}" + no.name + "{reset}")
+                                 |> Seq.map (fun no -> no.name.yellow)
                                  |> Seq.toArray)
                 self <! Notify(Message("You have " + names, []))
             | Go(direction) -> 
                 let exit = findObjectByName state.exitsYouSee direction
                 match exit with
                 | Some(no) -> no.ref <! AddContent(namedSelf)
-                | None -> notify self "You can not go {yellow}{0}{reset}" [ direction ]
+                | None -> notify self "You can not go {0}" [ direction ]
             //output stream actions
             | Notify(message) -> state.output <! message
             | SetOutput(newOutput) -> return! loop { state with output = newOutput }
-            | Where -> notify self "You are in {yellow}{0}{reset}" [ state.container.name ]
+            | Where -> notify self "You are in {0}" [ state.container.name.yellow ]
             | Fight(nameOfTarget) -> failwith "Not implemented yet"
             | SetTarget(_) -> failwith "Not implemented yet"
             | AttackCurrentTarget -> failwith "Not implemented yet"
