@@ -44,6 +44,9 @@ type ThingMessage =
     | Notify of Message
     | ContainerNotify of Message * except : seq<IActorRef>
     | Take of nameOfObject : string
+    | Enter of nameOfObject : string
+    | Exit
+    | ExitContainer of who : NamedObject
     | Drop of nameOfObject : string
     | Put of nameOfObjectToTake : string * nameOfContainer : string
     | Fight of nameOfTarget : string

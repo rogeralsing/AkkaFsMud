@@ -44,6 +44,7 @@ while true do
         | "take"
         | "get"
         | "t" -> player <! Take(msg)
+        | "enter" -> player <! Enter(msg)
         | "drop"
         | "d" -> player <! Drop(msg)
         | "put" when msg.Contains(" in ") -> 
@@ -56,6 +57,7 @@ while true do
         match str with
         | "look"
         | "l" -> player <! Look 
+        | "exit" -> player <! Exit
         | "inventory"
         | "inv" -> player <! Inventory  
         | "where" -> player <! Where
