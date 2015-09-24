@@ -1,5 +1,4 @@
-﻿// Learn more about F# at http://fsharp.org
-// See the 'F# Tutorial' project for more help.
+﻿// See the 'F# Tutorial' project for more help.
 open Akka.Actor
 open Akka.FSharp
 open System;
@@ -10,8 +9,6 @@ open ConnectionHandler
 open System.Net
 
 let system = System.create "my-system" (Configuration.load())
-
-
 
 let output = spawn system "output" (outputHandler)
 let kitchen = spawn system "kitchen" (thing "the kitchen")
@@ -35,7 +32,6 @@ gandalf <! SetContainerByActorRef(kitchen)
 sword <! SetContainerByActorRef(kitchen)
 helmet <! SetContainerByActorRef(kitchen)
 backpack <! SetContainerByActorRef(livingroom)
-
 
 while true do
     let input = Console.ReadLine()

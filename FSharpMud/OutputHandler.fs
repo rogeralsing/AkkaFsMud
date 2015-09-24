@@ -1,5 +1,5 @@
 ﻿module OutputHandler
-
+open AnsiSupport
 open Messages
 open Akka.FSharp
 open System
@@ -10,7 +10,8 @@ let outputHandler (mailbox : Actor<Message>) =
             let! message = mailbox.Receive()
             match message with
             | Message(format, args) -> 
-                let res = String.Format(format, args |> List.toArray)
+                let f = removeAnsi format
+                let res = String.Format(f, args |> List.toArray)
                 Console.WriteLine(res)
             return! loop()
         }

@@ -56,6 +56,7 @@
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Utils.fs" />
+    <Compile Include="AnsiSupport.fs" />
     <Compile Include="Messages.fs" />
     <Compile Include="Thing.fs" />
     <Compile Include="OutputHandler.fs" />
