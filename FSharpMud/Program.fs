@@ -11,7 +11,7 @@ open System.Net
 
 let system = System.create "my-system" (Configuration.load())
 
-let server = spawn system "server" (mudService (new IPEndPoint(IPAddress.Any, 8090)))
+
 
 let output = spawn system "output" (outputHandler)
 let kitchen = spawn system "kitchen" (thing "the kitchen")
@@ -22,6 +22,8 @@ let player = spawn system "player" (thing "Player1")
 let sword = spawn system "sword" (thing "a sword")
 let helmet = spawn system "helmet" (thing "a rusty helmet")
 let backpack = spawn system "backpack" (thing "a brown leather backpack")
+
+let server = spawn system "server" (mudService kitchen (new IPEndPoint(IPAddress.Any, 8090)))
 
 kitchen <! AddExit({name="north";ref=livingroom})
 livingroom <! AddExit({name="south";ref=kitchen})
