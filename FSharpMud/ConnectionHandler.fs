@@ -12,7 +12,9 @@ let connectionHandler (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<
         actor { 
             let! message = mailbox.Receive()
             match message with
-            | :? Tcp.Received as received -> ignore()                
+            | :? Tcp.Received as received -> 
+                let text = System.Text.Encoding.UTF8.GetString(received.Data.ToArray()).Trim();
+                printfn "Received %A" text
             | :? Tcp.ConnectionClosed -> 
                 printfn "Stopped, remote connection [%A] closed" remote
                 mailbox.Context.Stop mailbox.Self
