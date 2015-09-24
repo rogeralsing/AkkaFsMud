@@ -37,7 +37,7 @@ let mudService (endpoint:IPEndPoint) (mailbox : Actor<obj>) =
                 printfn "Remote address %A connected" connected.RemoteAddress;
                 let handler = spawn mailbox.Context.System null (connectionHandler (connected.RemoteAddress) (mailbox.Sender()))
                 mailbox.Sender() <! new Tcp.Register(handler)
-            | obj -> ignore()
+            | _ -> ()
             return! loop()
         }
     loop()
