@@ -59,6 +59,7 @@
     <Compile Include="Messages.fs" />
     <Compile Include="Thing.fs" />
     <Compile Include="OutputHandler.fs" />
+    <Compile Include="ConnectionHandler.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />

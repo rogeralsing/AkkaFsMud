@@ -6,8 +6,12 @@ open System;
 open Messages
 open Thing
 open OutputHandler
+open ConnectionHandler
+open System.Net
 
 let system = System.create "my-system" (Configuration.load())
+
+let server = spawn system "server" (mudService (new IPEndPoint(IPAddress.Any, 8090)))
 
 let output = spawn system "output" (outputHandler)
 let kitchen = spawn system "kitchen" (thing "the kitchen")

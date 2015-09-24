@@ -93,7 +93,7 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                     notify self "You enter {0}" [ no.name ]
                 | None -> notify self "Could not find {0}" [ nameOfObject ]
             | Exit -> state.container.ref <! ExitContainer(namedSelf)
-            | ExitContainer(who) -> state.container.ref <! AddContent(who)                
+            | ExitContainer(who) -> state.container.ref <! AddContent(who)
             | Drop(nameOfObject) -> 
                 let findResult = findObjectByName state.objectsYouHave nameOfObject
                 match findResult with
