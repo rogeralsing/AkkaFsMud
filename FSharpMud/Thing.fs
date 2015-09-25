@@ -7,48 +7,40 @@ open Utils
 open System
 open AnsiSupport
 
-let handleInput player (input:string) =
-    let parts = input.Split([|' '|],2,StringSplitOptions.None)
+let handleInput player (input : string) = 
+    let parts = input.Split([| ' ' |], 2, StringSplitOptions.None)
     let command = parts |> Seq.tryHead
-    let message = parts |> Seq.skip(1) |> Seq.tryLast
+    
+    let message = 
+        parts
+        |> Seq.skip (1)
+        |> Seq.tryLast
     match command, message with
-    | Some(str),Some(msg) ->
+    | Some(str), Some(msg) -> 
         match str with
-        | "say"
-        | "s" -> player <! Say(msg)
-        | "take"
-        | "get"
-        | "t" -> player <! Take(msg)
+        | "say" | "s" -> player <! Say(msg)
+        | "yell" | "y" -> player <! Yell(msg)
+        | "take" | "get" | "t" -> player <! Take(msg)
         | "enter" -> player <! Enter(msg)
-        | "drop"
-        | "d" -> player <! Drop(msg)
+        | "drop" | "d" -> player <! Drop(msg)
         | "put" when msg.Contains(" in ") -> 
-            let parts = msg.Split([|" in "|],2,StringSplitOptions.RemoveEmptyEntries)
+            let parts = msg.Split([| " in " |], 2, StringSplitOptions.RemoveEmptyEntries)
             let target = parts.[0]
             let container = parts.[1]
-            player <! Put(target,container)
+            player <! Put(target, container)
         | other -> printfn "unknown command %A" other
-    | Some(str),None ->        
+    | Some(str), None -> 
         match str with
-        | "look"
-        | "l" -> player <! Look 
+        | "look" | "l" -> player <! Look
         | "exit" -> player <! Exit
-        | "inventory"
-        | "inv" -> player <! Inventory  
+        | "inventory" | "inv" -> player <! Inventory
         | "where" -> player <! Where
-        | "north"
-        | "n" -> player <! Go("north")
-        | "south"
-        | "s" -> player <! Go("south")
-        | "east"
-        | "e" -> player <! Go("east")
-        | "west"
-        | "w" -> player <! Go("west")
+        | "north" | "n" -> player <! Go("north")
+        | "south" | "s" -> player <! Go("south")
+        | "east" | "e" -> player <! Go("east")
+        | "west" | "w" -> player <! Go("west")
         | other -> printfn "unknown command %A" other
     | _ -> ignore()
-
-
-
 
 type ThingState = 
     { container : NamedObject
@@ -59,6 +51,7 @@ type ThingState =
       exitsYouSee : Set<NamedObject> }
 
 let notify target format (args : List<obj>) = target <! Notify(Message(format, args))
+let notifyContainer target format (args : List<obj>) except = target <! ContainerNotify(Message(format, args),except)
 
 let thing (name : string) (mailbox : Actor<ThingMessage>) = 
     let self = mailbox.Self
@@ -80,6 +73,14 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                 let newObjectsYouHave = state.objectsYouHave.Add who
                 who.ref <! NewContainerAssigned(namedSelf, newObjectsYouHave, state.exitsYouHave)
                 return! loop { state with objectsYouHave = newObjectsYouHave }
+            | EnterRoom(who, from) -> 
+                for no in state.objectsYouHave do
+                    no.ref <! AddedContent(who)
+                let newObjectsYouHave = state.objectsYouHave.Add who
+                who.ref <! NewContainerAssigned(namedSelf, newObjectsYouHave, state.exitsYouHave)
+                notifyContainer from.ref "{0} disappears into {1}" [ who.name.yellow; name.yellow ] [ who.ref ]
+                notifyContainer self "{0} appears from {1}" [ who.name.yellow; from.name.yellow ] [ who.ref ]
+                return! loop { state with objectsYouHave = newObjectsYouHave }
             | RemoveContent(who, container) -> 
                 for no in state.objectsYouHave |> Seq.except [ who ] do
                     no.ref <! RemovedContent(who, container)
@@ -91,13 +92,8 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                     |> Seq.except except
                 for target in targets do
                     target <! Notify(message)
-            | AddedContent(who) -> 
-                notify self "{0} appears" [ who.name.yellow ]
-                return! loop { state with objectsYouSee = state.objectsYouSee.Add who }
-            | RemovedContent(who, container) -> 
-                if container <> namedSelf && not (state.objectsYouHave.Contains container) then 
-                    notify self "{0} disappears into {1}" [ who.name.yellow; container.name.yellow ]
-                return! loop { state with objectsYouSee = state.objectsYouSee.Remove who }
+            | AddedContent(who) -> return! loop { state with objectsYouSee = state.objectsYouSee.Add who }
+            | RemovedContent(who, _) -> return! loop { state with objectsYouSee = state.objectsYouSee.Remove who }
             | NewContainerAssigned(container, containerContent, exits) -> 
                 self <! Look
                 state.container.ref <! RemoveContent(namedSelf, container)
@@ -109,24 +105,23 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                 let objectNames = 
                     joinStrings (state.objectsYouSee
                                  |> Seq.except [ namedSelf ]
-                                 |> Seq.map (fun no -> no.name.yellow)
-                                 |> Seq.toArray)
+                                 |> Seq.map (fun no -> no.name.yellow))
                 
-                let exitNames = 
-                    joinStrings (state.exitsYouSee
-                                 |> Seq.map (fun no -> no.name.yellow)
-                                 |> Seq.toArray)
-                
+                let exitNames = joinStrings (state.exitsYouSee |> Seq.map (fun no -> no.name.yellow))
                 notify self "You are in {0}" [ state.container.name.yellow ]
-                notify self ("You see " + objectNames) [  ]
-                notify self ("Exits are: " + exitNames) [  ]
+                notify self ("You see " + objectNames) []
+                notify self ("Exits are: " + exitNames) []
             | Say(message) -> 
-                state.container.ref <! ContainerNotify(Message("{0} says {1}", [ name.yellow; message.green ]), [ self ])
+                notifyContainer state.container.ref "{0} says {1}" [ name.yellow; message.green ] [ self ]
                 notify self "You say {0}" [ message.green ]
+            | Yell(message) -> 
+                notifyContainer state.container.ref "{0} yells {1}" [ name.yellow; message.red ] [ self ]
+                notify self "You yell {0}" [ message.red ]
             | Take(nameOfObject) -> 
                 let findResult = findObjectByName state.objectsYouSee nameOfObject
                 match findResult with
                 | Some(no) -> 
+                    notifyContainer state.container.ref "{0} takes {1}" [ name.yellow; no.name.yellow ] [ self ]
                     self <! AddContent(no)
                     notify self "You take {0}" [ no.name.yellow ]
                 | None -> notify self "Could not find {0}" [ nameOfObject ]
@@ -134,15 +129,17 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                 let findResult = findObjectByName state.objectsYouSee nameOfObject
                 match findResult with
                 | Some(no) -> 
+                    notifyContainer state.container.ref "{0} enters {1}" [ name.yellow; no.name.yellow ] [ self ]
                     no.ref <! AddContent(namedSelf)
                     notify self "You enter {0}" [ no.name.yellow ]
                 | None -> notify self "Could not find {0}" [ nameOfObject.yellow ]
-            | Exit -> state.container.ref <! ExitContainer(namedSelf)
-            | ExitContainer(who) -> state.container.ref <! AddContent(who)
+            | Exit -> state.container.ref <! ExitContainer(namedSelf, state.container)
+            | ExitContainer(who, _) -> state.container.ref <! EnterRoom(who, namedSelf)
             | Drop(nameOfObject) -> 
                 let findResult = findObjectByName state.objectsYouHave nameOfObject
                 match findResult with
                 | Some(no) -> 
+                    notifyContainer state.container.ref "{0} drops {1}" [ name.yellow; no.name.yellow ] [ self ]
                     state.container.ref <! AddContent(no)
                     notify self "You drop {0}" [ no.name.yellow ]
                 | None -> notify self "Could not find {0}" [ nameOfObject.yellow ]
@@ -163,15 +160,13 @@ let thing (name : string) (mailbox : Actor<ThingMessage>) =
                     | None -> notify self "Could not find {0}" [ nameOfContainer.yellow ]
                 | None -> notify self "Could not find {0}" [ nameOfTarget.yellow ]
             | Inventory -> 
-                let names = 
-                    joinStrings (state.objectsYouHave
-                                 |> Seq.map (fun no -> no.name.yellow)
-                                 |> Seq.toArray)
+                let names = joinStrings (state.objectsYouHave |> Seq.map (fun no -> no.name.yellow))
                 self <! Notify(Message("You have " + names, []))
+                notifyContainer state.container.ref "{0} checks his inventory" [ name.yellow ] [ self ]
             | Go(direction) -> 
                 let exit = findObjectByName state.exitsYouSee direction
                 match exit with
-                | Some(no) -> no.ref <! AddContent(namedSelf)
+                | Some(no) -> no.ref <! EnterRoom(namedSelf, state.container)
                 | None -> notify self "You can not go {0}" [ direction ]
             //output stream actions
             | Notify(message) -> state.output <! message

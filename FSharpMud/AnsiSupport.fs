@@ -55,4 +55,5 @@ type String with
         "{yellow}" + this + "{reset}"
     member this.green =
         "{green}" + this + "{reset}"
-        
+    member this.red =
+        "{red}" + this + "{reset}"        

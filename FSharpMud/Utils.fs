@@ -14,7 +14,8 @@ let removePrefix(name : string) =
     | Prefix "the " rest -> rest
     | rest -> rest
 
-let joinStrings (strings : string []) = 
+let joinStrings (strs : seq<string>) = 
+    let strings = strs |> Seq.toArray
     match strings.Length with
     | 0 -> "nothing"
     | 1 -> strings.[0]

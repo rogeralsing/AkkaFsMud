@@ -11,11 +11,12 @@ open System.Net
 let system = System.create "my-system" (Configuration.load())
 
 let output = spawn system "output" (outputHandler)
+let world = spawn system "wilderness" (thing "the wilderness")
 let kitchen = spawn system "kitchen" (thing "the kitchen")
 let livingroom = spawn system "livingroom" (thing "the living room")
 let gandalf = spawn system "gandalf" (thing "Gandalf")
 let goblin = spawn system "goblin" (thing "a goblin")
-let player = spawn system "player" (thing "Player1")
+let player = spawn system "player" (thing "Admin")
 let sword = spawn system "sword" (thing "a sword")
 let helmet = spawn system "helmet" (thing "a rusty helmet")
 let backpack = spawn system "backpack" (thing "a brown leather backpack")
@@ -25,6 +26,8 @@ let server = spawn system "server" (mudService kitchen (new IPEndPoint(IPAddress
 kitchen <! AddExit({name="north";ref=livingroom})
 livingroom <! AddExit({name="south";ref=kitchen})
 
+kitchen <! SetContainerByActorRef(world)
+livingroom <! SetContainerByActorRef(world)
 player <! SetOutput(output)
 player <! SetContainerByActorRef(kitchen)
 goblin <! SetContainerByActorRef(kitchen)

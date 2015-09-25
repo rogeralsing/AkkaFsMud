@@ -4,6 +4,10 @@ open Messages
 open Akka.FSharp
 open System
 
+/// <summary>
+/// 
+/// </summary>
+/// <param name="mailbox"></param>
 let outputHandler (mailbox : Actor<Message>) = 
     let rec loop() = 
         actor { 
