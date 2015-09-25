@@ -1,57 +1,41 @@
 ﻿module Messages
-
 open Akka.Actor
-open Utils
-
-[<CustomEquality; CustomComparison>]
-type NamedObject = 
-    { name : string
-      ref : IActorRef }
-    
-    override x.Equals(yobj) = 
-        match yobj with
-        | :? NamedObject as y -> (x.name = y.name && x.ref.Path = y.ref.Path)
-        | _ -> false
-    
-    override x.GetHashCode() = hash x.name
-    interface System.IComparable with
-        member x.CompareTo yobj = 
-            match yobj with
-            | :? NamedObject as y -> 
-                compare (x.name + x.ref.Path.ToSerializationFormat()) (y.name + y.ref.Path.ToSerializationFormat())
-            | _ -> invalidArg "yobj" "cannot compare values of different types"
-
-let findObjectByName objects nameToFind = 
-    let cleanName = nameToFind |> removePrefix
-    objects |> Seq.tryFind (fun no -> no.name.ToLowerInvariant().Contains(cleanName))
+open ActorState
 
 type Message = 
     | Message of format : string * args : list<obj>
 
-type ThingMessage = 
-    | SetOutput of IActorRef
-    | SetContainerByActorRef of IActorRef
-    | AddExit of NamedObject
+type ContainerMessage = 
     | AddContent of NamedObject
-    | AddedContent of NamedObject
-    | EnterRoom of who : NamedObject * from : NamedObject
     | RemoveContent of who : NamedObject * newContaner : NamedObject
-    | RemovedContent of who : NamedObject * newContaner : NamedObject
+    | EnterRoom of who : NamedObject * from : NamedObject
+    | ExitContainer of who : NamedObject * from : NamedObject
+    | AddExit of NamedObject
+    | ContainerNotify of Message * except : seq<IActorRef>
+
+type ContainedMessages = 
+    | SetContainerByActorRef of IActorRef
     | NewContainerAssigned of container : NamedObject * content : Set<NamedObject> * exits : Set<NamedObject>
-    | Where
+    | AddedContent of NamedObject
+    | RemovedContent of who : NamedObject * newContaner : NamedObject
+
+type NotifyMessages = 
+    | SetOutput of IActorRef
+    | Notify of Message
+
+type ThingMessage = 
     | Inventory
     | Look
     | Go of direction : string
     | Say of message : string
     | Yell of message : string
-    | Notify of Message
-    | ContainerNotify of Message * except : seq<IActorRef>
     | Take of nameOfObject : string
     | Enter of nameOfObject : string
     | Exit
-    | ExitContainer of who : NamedObject * from : NamedObject
     | Drop of nameOfObject : string
     | Put of nameOfObjectToTake : string * nameOfContainer : string
+
+type CombatMessages = 
     | Fight of nameOfTarget : string
     | SetTarget of NamedObject
     | AttackCurrentTarget

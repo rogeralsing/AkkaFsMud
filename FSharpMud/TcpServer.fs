@@ -1,5 +1,4 @@
 ﻿module ConnectionHandler
-open Akka
 open Akka.Actor
 open Akka.IO
 open Akka.FSharp
@@ -8,6 +7,7 @@ open Thing
 open Messages
 open System.Text
 open AnsiSupport
+open InputHandler
 
 let connectionHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<obj>) = 
     mailbox.Context.Watch connection |> ignore

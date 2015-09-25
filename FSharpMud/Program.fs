@@ -1,12 +1,11 @@
-﻿// See the 'F# Tutorial' project for more help.
-open Akka.Actor
-open Akka.FSharp
+﻿open Akka.FSharp
 open System;
 open Messages
 open Thing
 open OutputHandler
 open ConnectionHandler
 open System.Net
+open InputHandler
 
 let system = System.create "my-system" (Configuration.load())
 

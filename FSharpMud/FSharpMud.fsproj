@@ -57,10 +57,13 @@
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="Utils.fs" />
     <Compile Include="AnsiSupport.fs" />
+    <Compile Include="ActorState.fs" />
     <Compile Include="Messages.fs" />
-    <Compile Include="Thing.fs" />
+    <Compile Include="MessageHandlers.fs" />
+    <Compile Include="Actors.fs" />
+    <Compile Include="InputHandler.fs" />
     <Compile Include="OutputHandler.fs" />
-    <Compile Include="ConnectionHandler.fs" />
+    <Compile Include="TcpServer.fs" />
     <Compile Include="Program.fs" />
     <None Include="App.config" />
     <Content Include="packages.config" />
