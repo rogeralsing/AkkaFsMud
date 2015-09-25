@@ -8,6 +8,7 @@ open ActorState
 let notify target format (args : List<obj>) = target <! Notify(Message(format, args))
 let notifyContainer target format (args : List<obj>) except = target <! ContainerNotify(Message(format, args), except)
 
+//handles messages for contained objects, objects residing inside a container
 let containedHandler message (namedSelf : NamedObject) loop (state : ThingState) = 
     actor { 
         match message with
@@ -23,6 +24,7 @@ let containedHandler message (namedSelf : NamedObject) loop (state : ThingState)
         return! loop state
     }
 
+//handle messages for output streams
 let notifyHandler message (namedSelf : NamedObject) loop (state : ThingState) = 
     actor { 
         match message with
@@ -31,6 +33,7 @@ let notifyHandler message (namedSelf : NamedObject) loop (state : ThingState) =
         return! loop state
     }
 
+//handles messages for containers
 let containerHandler message (namedSelf : NamedObject) loop (state : ThingState) = 
     actor { 
         match message with
@@ -64,6 +67,7 @@ let containerHandler message (namedSelf : NamedObject) loop (state : ThingState)
         return! loop state
     }
 
+//handles messages for agents that can interact with the world
 let thingHandler message (namedSelf : NamedObject) loop (state : ThingState) = 
     actor { 
         match message with
