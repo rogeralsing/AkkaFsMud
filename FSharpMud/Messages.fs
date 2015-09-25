@@ -5,7 +5,7 @@ open ActorState
 type Message = 
     | Message of format : string * args : list<obj>
 
-type ContainerMessage = 
+type ContainerMessages = 
     | AddContent of NamedObject
     | RemoveContent of who : NamedObject * newContaner : NamedObject
     | EnterRoom of who : NamedObject * from : NamedObject
@@ -23,7 +23,7 @@ type NotifyMessages =
     | SetOutput of IActorRef
     | Notify of Message
 
-type ThingMessage = 
+type AgentMessages = 
     | Inventory
     | Look
     | Go of direction : string

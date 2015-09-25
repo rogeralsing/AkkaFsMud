@@ -21,7 +21,7 @@ let emptyState =
       exitsYouSee = emptySet }
 
 let container (name : string) (mailbox : Actor<obj>) = 
-    let namedSelf = 
+    let self = 
         { name = name
           ref = mailbox.Self }
     
@@ -29,8 +29,8 @@ let container (name : string) (mailbox : Actor<obj>) =
         actor { 
             let! m = mailbox.Receive()
             match m with
-            | :? ContainerMessage as message -> return! containerHandler message namedSelf loop state
-            | :? ContainedMessages as message -> return! containedHandler message namedSelf loop state
+            | :? ContainerMessages as message -> return! containerHandler message self loop state
+            | :? ContainedMessages as message -> return! containedHandler message self loop state
             | _ -> ()
             return! loop state
         }
@@ -38,7 +38,7 @@ let container (name : string) (mailbox : Actor<obj>) =
     loop emptyState
 
 let living (name : string) (mailbox : Actor<obj>) = 
-    let namedSelf = 
+    let self = 
         { name = name
           ref = mailbox.Self }
     
@@ -46,10 +46,10 @@ let living (name : string) (mailbox : Actor<obj>) =
         actor { 
             let! m = mailbox.Receive()
             match m with
-            | :? ContainerMessage as message -> return! containerHandler message namedSelf loop state
-            | :? ContainedMessages as message -> return! containedHandler message namedSelf loop state
-            | :? NotifyMessages as message -> return! notifyHandler message namedSelf loop state
-            | :? ThingMessage as message -> return! thingHandler message namedSelf loop state
+            | :? ContainerMessages as message -> return! containerHandler message self loop state
+            | :? ContainedMessages as message -> return! containedHandler message self loop state
+            | :? NotifyMessages as message -> return! notifyHandler message self loop state
+            | :? AgentMessages as message -> return! agentHandler message self loop state
             | _ -> ()
             return! loop state
         }
