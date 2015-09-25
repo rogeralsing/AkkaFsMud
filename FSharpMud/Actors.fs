@@ -31,9 +31,8 @@ let container (name : string) (mailbox : Actor<obj>) =
             match m with
             | :? ContainerMessage as message -> return! containerHandler message namedSelf loop state
             | :? ContainedMessages as message -> return! containedHandler message namedSelf loop state
-            | :? NotifyMessages as message -> return! notifyHandler message namedSelf loop state
-            | :? ThingMessage as message -> return! thingHandler message namedSelf loop state
-            | unhandled -> mailbox.Unhandled unhandled
+            | _ -> ()
+            return! loop state
         }
     
     loop emptyState
@@ -51,7 +50,8 @@ let living (name : string) (mailbox : Actor<obj>) =
             | :? ContainedMessages as message -> return! containedHandler message namedSelf loop state
             | :? NotifyMessages as message -> return! notifyHandler message namedSelf loop state
             | :? ThingMessage as message -> return! thingHandler message namedSelf loop state
-            | unhandled -> mailbox.Unhandled unhandled
+            | _ -> ()
+            return! loop state
         }
     
     loop emptyState
