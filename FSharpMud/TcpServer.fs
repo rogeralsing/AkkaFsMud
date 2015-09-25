@@ -11,7 +11,7 @@ open InputHandler
 
 let connectionHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<obj>) = 
     mailbox.Context.Watch connection |> ignore
-    let player = spawn mailbox.Context.System null (thing "player")
+    let player = spawn mailbox.Context.System null (living "player")
     let sb = new StringBuilder()
     player <! SetOutput(mailbox.Self)
     player <! SetContainerByActorRef(startRoom)
