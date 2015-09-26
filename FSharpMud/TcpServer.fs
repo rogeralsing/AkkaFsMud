@@ -3,35 +3,35 @@ open Akka.Actor
 open Akka.IO
 open Akka.FSharp
 open System.Net
-open Thing
+open Actors
 open Messages
 open System.Text
 open AnsiSupport
 open InputHandler
-open System.Collections.Generic
+open System
 
-let receiveInput (sb:StringBuilder) (received:Tcp.Received)=
-    let text = Encoding.UTF8.GetString(received.Data.ToArray());
-    sb.Append(text) |> ignore
+let receiveInput (inputBuffer:StringBuilder) (received:Tcp.Received)=
+    let text = Encoding.ASCII.GetString(received.Data.ToArray());
+    inputBuffer.Append(text) |> ignore
 
-    let all = sb.ToString()
-    let enter = all.IndexOf('\r')
-    if enter >= 0 then
-        let command = all.Substring(0,enter)
-        sb.Remove(0,enter+2) |> ignore
-        let stack = new Stack<char>()
-        for c in command do
-            if c = '\b' then stack.Pop() |> ignore
-            else stack.Push c
-
-        let cmd = new System.String(stack |> Seq.rev |> Seq.toArray)
+    let all = inputBuffer.ToString()
+    match all.IndexOf('\r') with
+    | enter when enter >= 0 ->
+        let textToProcess = all.Substring(0,enter)
+        inputBuffer.Remove(0,enter+2) |> ignore
         
-        Some(cmd)
-    else
+        let input = textToProcess
+                    |> Seq.fold (fun acc c -> if c = '\b' then acc |> List.tail else c::acc) []
+                    |> List.rev
+                    |> List.toArray
+                    |> String
+
+        Some(input)
+    | _ ->
         None
 
 let write target (text:string) =
-    let bytes = System.Text.Encoding.UTF8.GetBytes(text)  
+    let bytes = System.Text.Encoding.ASCII.GetBytes(text)  
     let byteString = ByteString.Create(bytes,0,bytes.Length)
     target <! (Tcp.Write.Create(byteString))
 

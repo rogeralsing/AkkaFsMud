@@ -1,4 +1,4 @@
-﻿module Thing
+﻿module Actors
 
 open Akka.Actor
 open Akka.FSharp

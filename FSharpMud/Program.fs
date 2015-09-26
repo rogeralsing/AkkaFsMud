@@ -1,15 +1,12 @@
-﻿open Akka.FSharp
-open System;
+﻿open Actors
+open Akka.FSharp
 open Messages
-open Thing
-open OutputHandler
-open ConnectionHandler
 open System.Net
-open InputHandler
+open System;
 
 let system = System.create "my-system" (Configuration.load())
 
-let output = spawn system "output" (outputHandler)
+let output = spawn system "output" (ConsoleOutput.outputHandler)
 let world = spawn system "wilderness" (container "the wilderness" false false)
 let kitchen = spawn system "kitchen" (container "the kitchen" false false)
 let livingroom = spawn system "livingroom" (container "the living room" false false)
@@ -20,7 +17,7 @@ let sword = spawn system "sword" (thing "a sword")
 let helmet = spawn system "helmet" (thing "a rusty helmet")
 let backpack = spawn system "backpack" (container "a brown leather backpack" true true)
 
-let server = spawn system "server" (mudService kitchen (new IPEndPoint(IPAddress.Any, 8090)))
+let server = spawn system "server" (ConnectionHandler.mudService kitchen (new IPEndPoint(IPAddress.Any, 8090)))
 
 kitchen <! AddExit({name="north";ref=livingroom})
 livingroom <! AddExit({name="south";ref=kitchen})
@@ -37,4 +34,4 @@ backpack <! SetContainerByActorRef(livingroom)
 
 while true do
     let input = Console.ReadLine()
-    handleInput player input
+    InputHandler.handleInput player input

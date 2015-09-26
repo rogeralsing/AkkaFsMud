@@ -1,4 +1,4 @@
-﻿module OutputHandler
+﻿module ConsoleOutput
 open AnsiSupport
 open Messages
 open Akka.FSharp
