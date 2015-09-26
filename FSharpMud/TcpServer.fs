@@ -8,16 +8,25 @@ open Messages
 open System.Text
 open AnsiSupport
 open InputHandler
+open System.Collections.Generic
 
 let receiveInput (sb:StringBuilder) (received:Tcp.Received)=
     let text = Encoding.UTF8.GetString(received.Data.ToArray());
     sb.Append(text) |> ignore
+
     let all = sb.ToString()
     let enter = all.IndexOf('\r')
     if enter >= 0 then
         let command = all.Substring(0,enter)
         sb.Remove(0,enter+2) |> ignore
-        Some(command)
+        let stack = new Stack<char>()
+        for c in command do
+            if c = '\b' then stack.Pop() |> ignore
+            else stack.Push c
+
+        let cmd = new System.String(stack |> Seq.rev |> Seq.toArray)
+        
+        Some(cmd)
     else
         None
 
