@@ -1,29 +1,30 @@
 ﻿module Messages
+
 open Akka.Actor
 open ActorState
 
-type Message = 
+type Message =
     | Message of format : string * args : list<obj>
 
-type ContainerMessages = 
-    | AddContent of what:NamedObject * who:NamedObject
+type ContainerMessages =
+    | AddContent of what : NamedObject * who : NamedObject
     | RemoveContent of who : NamedObject * newContaner : NamedObject
     | EnterRoom of who : NamedObject * from : NamedObject
     | ExitContainer of who : NamedObject * from : NamedObject
     | AddExit of NamedObject
     | ContainerNotify of Message * except : list<IActorRef>
 
-type ContainedMessages = 
+type ContainedMessages =
     | SetContainerByActorRef of IActorRef
     | NewContainerAssigned of container : NamedObject * content : Set<NamedObject> * exits : Set<NamedObject>
     | AddedContent of NamedObject
     | RemovedContent of who : NamedObject * newContaner : NamedObject
 
-type NotifyMessages = 
+type NotifyMessages =
     | SetOutput of IActorRef
     | Notify of Message
 
-type AgentMessages = 
+type AgentMessages =
     | Inventory
     | Look
     | Go of direction : string
@@ -35,7 +36,7 @@ type AgentMessages =
     | Drop of nameOfObject : string
     | Put of nameOfObjectToTake : string * nameOfContainer : string
 
-type CombatMessages = 
+type CombatMessages =
     | Fight of nameOfTarget : string
     | SetTarget of NamedObject
     | AttackCurrentTarget
