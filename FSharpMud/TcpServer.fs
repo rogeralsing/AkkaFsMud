@@ -38,7 +38,7 @@ let write target (text:string) =
 let loginHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<obj>) = 
     mailbox.Context.Watch connection |> ignore
    
-    let sb = new StringBuilder()    
+    let inputBuffer = new StringBuilder()    
     write connection "Welcom to Akka FS MUD\r\n"
     write connection "Please enter your name\r\n"
     let rec play player = 
@@ -47,12 +47,9 @@ let loginHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) 
             match message with
             | :? Message as msg -> 
                 match msg with
-                | Message(format,args) ->
-                    let f = formatAnsi format
-                    let str = formatAnsi (System.String.Format(f,args |> List.toArray) + "\r\n")
-                    write connection str
+                | Message(format,args) -> write connection (formatAnsi format args)
             | :? Tcp.Received as received ->                 
-                match receiveInput sb received with 
+                match receiveInput inputBuffer received with 
                 | Some(command) -> handleInput player command
                 | None -> ()
 
@@ -71,14 +68,14 @@ let loginHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) 
             let! message = mailbox.Receive()
             match message with         
             | :? Tcp.Received as received -> 
-                match receiveInput sb received with 
+                match receiveInput inputBuffer received with 
                 | Some(name) ->
-                    write connection (formatAnsi("You will be known as " + name.yellow+ "\r\n"))
+                    write connection (toAnsi("You will be known as " + name.yellow+ "\r\n"))
                     let player = spawn mailbox.Context.System null (living name)
                     player <! SetOutput(mailbox.Self)
                     player <! SetContainerByActorRef(startRoom)
                     player <! Look
-                    sb.Clear() |> ignore //TODO: this is ugly
+                    inputBuffer.Clear() |> ignore //TODO: this is ugly
                     return! play player
                 | None -> ()
 
