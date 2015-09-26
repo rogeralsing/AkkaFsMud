@@ -60,6 +60,7 @@
     <Compile Include="ActorState.fs" />
     <Compile Include="Messages.fs" />
     <Compile Include="MessageHandlers.fs" />
+    <Compile Include="ContainerHandler.fs" />
     <Compile Include="Actors.fs" />
     <Compile Include="InputHandler.fs" />
     <Compile Include="OutputHandler.fs" />

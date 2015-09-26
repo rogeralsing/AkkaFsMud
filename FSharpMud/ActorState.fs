@@ -24,10 +24,11 @@ let findObjectByName objects nameToFind =
     let cleanName = nameToFind |> removePrefix
     objects |> Seq.tryFind (fun no -> no.name.ToLowerInvariant().Contains(cleanName))
 
-type ThingState = 
+type ThingState<'a> = 
     { container : NamedObject
       output : IActorRef
       objectsYouHave : Set<NamedObject>
       objectsYouSee : Set<NamedObject>
       exitsYouHave : Set<NamedObject>
-      exitsYouSee : Set<NamedObject> }
+      exitsYouSee : Set<NamedObject> 
+      custom : 'a} //user defined state per object type

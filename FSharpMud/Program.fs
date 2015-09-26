@@ -10,15 +10,15 @@ open InputHandler
 let system = System.create "my-system" (Configuration.load())
 
 let output = spawn system "output" (outputHandler)
-let world = spawn system "wilderness" (container "the wilderness")
-let kitchen = spawn system "kitchen" (container "the kitchen")
-let livingroom = spawn system "livingroom" (container "the living room")
+let world = spawn system "wilderness" (container "the wilderness" false false)
+let kitchen = spawn system "kitchen" (container "the kitchen" false false)
+let livingroom = spawn system "livingroom" (container "the living room" false false)
 let gandalf = spawn system "gandalf" (living "Gandalf")
 let goblin = spawn system "goblin" (living "a goblin")
 let player = spawn system "player" (living "Admin")
-let sword = spawn system "sword" (living "a sword")
-let helmet = spawn system "helmet" (living "a rusty helmet")
-let backpack = spawn system "backpack" (container "a brown leather backpack")
+let sword = spawn system "sword" (thing "a sword")
+let helmet = spawn system "helmet" (thing "a rusty helmet")
+let backpack = spawn system "backpack" (container "a brown leather backpack" true true)
 
 let server = spawn system "server" (mudService kitchen (new IPEndPoint(IPAddress.Any, 8090)))
 
