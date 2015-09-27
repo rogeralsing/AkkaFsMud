@@ -48,9 +48,7 @@ let playerHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef)
         actor { 
             let! message = mailbox.Receive()
             match message with
-            | :? Message as msg -> 
-                match msg with
-                | Message(format,args) -> write connection (formatAnsi format args)
+            | :? Message as msg -> write connection (formatAnsi msg.format msg.args)
             | :? Tcp.Received as received ->                 
                 match receiveInput inputBuffer received with 
                 | Some(command) -> handleInput player command

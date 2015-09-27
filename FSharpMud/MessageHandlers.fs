@@ -6,8 +6,8 @@ open AnsiSupport
 open Messages
 open Utils
 
-let notify target format (args : List<obj>) = target <! Notify(Message(format, args))
-let notifyContainer target format (args : List<obj>) except = target <! ContainerNotify(Message(format, args), except)
+let notify target format (args : List<obj>) = target <! Notify( {format = format; args = args})
+let notifyContainer target format (args : List<obj>) except = target <! ContainerNotify({format = format; args = args}, except)
 
 //handles messages for contained objects, objects residing inside a container
 let containedHandler message self loop state =
@@ -139,7 +139,7 @@ let agentHandler message self loop state =
             | None -> notify self.ref "Could not find {0}" [ nameOfTarget.yellow ]
         | Inventory ->
             let names = joinStrings (state.objectsYouHave |> Seq.map (fun no -> no.name.yellow))
-            self.ref <! Notify(Message("You have " + names, []))
+            notify self.ref "You have {0}" [names]
             notifyContainer state.container.ref "{0} checks his inventory" [ self.name.yellow ] [ self.ref ]
         | Go(direction) ->
             let exit = findObjectByName state.exitsYouSee direction

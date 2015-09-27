@@ -3,8 +3,7 @@
 open Akka.Actor
 open ActorState
 
-type Message =
-    | Message of format : string * args : list<obj>
+type Message = {format : string ; args : list<obj>}
 
 type ContainerMessages =
     | AddContent of what : NamedObject * who : NamedObject
