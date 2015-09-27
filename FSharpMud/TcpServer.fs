@@ -19,14 +19,13 @@ let receiveInput (inputBuffer:StringBuilder) (received:Tcp.Received)=
     | enter when enter >= 0 ->
         let textToProcess = all.Substring(0,enter)
         inputBuffer.Remove(0,enter+2) |> ignore
-        
-        let input = textToProcess
-                    |> Seq.fold (fun acc c -> if c = '\b' then acc |> List.tail else c::acc) []
-                    |> List.rev
-                    |> List.toArray
-                    |> String
 
-        Some(input)
+        textToProcess
+        |> Seq.fold (fun acc c -> if c = '\b' then acc |> List.tail else c::acc) []
+        |> List.rev
+        |> List.toArray
+        |> String
+        |> Some
     | _ ->
         None
 
@@ -35,8 +34,12 @@ let write target (text:string) =
     let byteString = ByteString.Create(bytes,0,bytes.Length)
     target <! (Tcp.Write.Create(byteString))
 
-let loginHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<obj>) = 
+let playerHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<obj>) = 
     mailbox.Context.Watch connection |> ignore
+
+    let close () = 
+        printfn "Stopped, remote connection [%A] closed" remote
+        mailbox.Context.Stop mailbox.Self
    
     let inputBuffer = new StringBuilder()    
     write connection "Welcom to Akka FS MUD\r\n"
@@ -53,12 +56,7 @@ let loginHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) 
                 | Some(command) -> handleInput player command
                 | None -> ()
 
-            | :? Tcp.ConnectionClosed -> 
-                printfn "Stopped, remote connection [%A] closed" remote
-                mailbox.Context.Stop mailbox.Self
-            | :? Terminated -> 
-                printfn "Stopped, remote connection [%A] died" remote
-                mailbox.Context.Stop mailbox.Self
+            | :? Tcp.ConnectionClosed | :? Terminated -> close ()
             | _ -> ()
             return! play player
         }
@@ -79,12 +77,7 @@ let loginHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) 
                     return! play player
                 | None -> ()
 
-            | :? Tcp.ConnectionClosed -> 
-                printfn "Stopped, remote connection [%A] closed" remote
-                mailbox.Context.Stop mailbox.Self
-            | :? Terminated -> 
-                printfn "Stopped, remote connection [%A] died" remote
-                mailbox.Context.Stop mailbox.Self
+            | :? Tcp.ConnectionClosed | :? Terminated -> close ()
             | _ -> ()
             return! login()
         }
@@ -99,7 +92,7 @@ let mudService (startRoom:IActorRef) (endpoint:IPEndPoint) (mailbox : Actor<obj>
             match message with
             | :? Tcp.Connected as connected -> 
                 printfn "Remote address %A connected" connected.RemoteAddress;
-                let handler = spawn mailbox.Context.System null (loginHandler startRoom (connected.RemoteAddress) (mailbox.Sender()))
+                let handler = spawn mailbox.Context.System null (playerHandler startRoom (connected.RemoteAddress) (mailbox.Sender()))
                 mailbox.Sender() <! new Tcp.Register(handler)
             | _ -> ()
             return! loop()
