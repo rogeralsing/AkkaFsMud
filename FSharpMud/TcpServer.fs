@@ -34,53 +34,46 @@ let write target (text:string) =
     let byteString = ByteString.Create(bytes,0,bytes.Length)
     target <! (Tcp.Write.Create(byteString))
 
+type PlayerState =
+     | Play of player : IActorRef
+     | Login
+
 let playerHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<obj>) = 
     mailbox.Context.Watch connection |> ignore
 
-    let inputBuffer = new StringBuilder()    
-    let ambient (message:obj) =
-        match message with
-        | :? Tcp.ConnectionClosed | :? Terminated ->
-            printfn "Stopped, remote connection [%A] closed" remote
-            mailbox.Context.Stop mailbox.Self
-        | _ -> ()
+    let inputBuffer = new StringBuilder()  
 
-    let rec play player = 
-        actor { 
+    let rec loop (state:PlayerState) =
+        actor {
             let! message = mailbox.Receive()
             match message with
             | :? Message as msg -> write connection (formatAnsi msg.format msg.args)
-            | :? Tcp.Received as received ->                 
+            | :? Tcp.ConnectionClosed | :? Terminated -> 
+                printfn "Stopped, remote connection [%A] closed" remote
+                mailbox.Context.Stop mailbox.Self
+            | :? Tcp.Received as received ->
                 match receiveInput inputBuffer received with 
-                | Some(command) -> handleInput player command
+                | Some(input) -> 
+                    match state with
+                    | Login ->
+                        write connection (formatAnsi "You will be known as {0}\r\n" [input.yellow])
+                        let player = spawn mailbox.Context.System null (living input)
+                        player <! SetOutput(mailbox.Self)
+                        player <! SetContainerByActorRef(startRoom)
+                        player <! Look
+                        return! loop (Play(player))
+                    | Play(player) -> 
+                        handleInput player input
+
                 | None -> ()
-
-            | other -> ambient other
-            return! play player
-        }
-
-    let rec login() = 
-        actor { 
-            let! message = mailbox.Receive()
-            match message with         
-            | :? Tcp.Received as received -> 
-                match receiveInput inputBuffer received with 
-                | Some(name) ->
-                    write connection (formatAnsi "You will be known as {0}\r\n" [name.yellow])
-                    let player = spawn mailbox.Context.System null (living name)
-                    player <! SetOutput(mailbox.Self)
-                    player <! SetContainerByActorRef(startRoom)
-                    player <! Look
-                    return! play player
-                | None -> ()
-
-            | other -> ambient other
-            return! login()
+            | _ -> ()
+               
+            return! loop state    
         }
 
     write connection "Welcome to Akka FS MUD\r\n"
     write connection "Please enter your name\r\n"
-    login()
+    loop Login
 
 let mudService (startRoom:IActorRef) (endpoint:IPEndPoint) (mailbox : Actor<obj>) = 
     let manager = mailbox.Context.System.Tcp()
