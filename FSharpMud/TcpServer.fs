@@ -35,8 +35,9 @@ let write target (text:string) =
     target <! (Tcp.Write.Create(byteString))
 
 type PlayerState =
-     | Play of player : IActorRef
      | Login
+     | Play of player : IActorRef
+
 
 let playerHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<obj>) = 
     mailbox.Context.Watch connection |> ignore

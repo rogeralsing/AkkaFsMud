@@ -1,4 +1,4 @@
-﻿module Utils
+﻿module StringUtils
 open System
 
 let (|Prefix|_|) (p : string) (s : string) = 

@@ -39,20 +39,16 @@ let ansiColors =
       ("{!white}", "\x1B[47m", "Background white") ]
 
 let toAnsi (input:string) =
-    let mutable str = input //yewhatever
-    for (name,escape,_) in ansiColors do
-        str <- str.Replace(name,escape)
-    str
+    ansiColors 
+    |> Seq.fold (fun (acc:string) (name,escape,_) -> acc.Replace(name,escape)) input
 
 let stripAnsi (input:string) =
-    let mutable str = input //yewhatever
-    for (name,_,_) in ansiColors do
-        str <- str.Replace(name,"")
-    str
+    ansiColors 
+    |> Seq.fold (fun (acc:string) (name,_,_) -> acc.Replace(name,"")) input
 
 let formatAnsi (format:string) (args:List<obj>) =
      let f = toAnsi format
-     toAnsi (System.String.Format(f,args |> List.toArray) + "\r\n")
+     toAnsi (String.Format(f,args |> List.toArray) + "\r\n")
 
 type String with
     member this.yellow =

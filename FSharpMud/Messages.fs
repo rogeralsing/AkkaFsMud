@@ -13,7 +13,7 @@ type ContainerMessages =
     | AddExit of NamedObject
     | ContainerNotify of Message * except : list<IActorRef>
 
-type ContainedMessages =
+type ContaineeMessages =
     | SetContainerByActorRef of IActorRef
     | NewContainerAssigned of container : NamedObject * content : Set<NamedObject> * exits : Set<NamedObject>
     | AddedContent of NamedObject
@@ -33,7 +33,7 @@ type AgentMessages =
     | Enter of nameOfObject : string
     | Exit
     | Drop of nameOfObject : string
-    | Put of nameOfObjectToTake : string * nameOfContainer : string
+    | Put of nameOfObjectToTake : string * nameOfContainer : string    
 
 type CombatMessages =
     | Fight of nameOfTarget : string

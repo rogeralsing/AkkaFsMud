@@ -21,8 +21,8 @@ let handleInput player (input : string) =
         | "drop" | "d" -> player <! Drop(msg)
         | "put" when msg.Contains(" in ") -> 
             let parts = msg.Split([| " in " |], 2, StringSplitOptions.RemoveEmptyEntries)
-            let target = parts.[0]
-            let container = parts.[1]
+            let target = parts.[0].Trim()
+            let container = parts.[1].Trim()
             player <! Put(target, container)
         | other -> printfn "unknown command %A" other
     | Some(str), None -> 

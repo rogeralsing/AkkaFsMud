@@ -55,12 +55,11 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="Utils.fs" />
+    <Compile Include="StringUtils.fs" />
     <Compile Include="AnsiSupport.fs" />
     <Compile Include="ActorState.fs" />
     <Compile Include="Messages.fs" />
     <Compile Include="MessageHandlers.fs" />
-    <Compile Include="ContainerHandler.fs" />
     <Compile Include="Actors.fs" />
     <Compile Include="InputHandler.fs" />
     <Compile Include="OutputHandler.fs" />
