@@ -37,13 +37,14 @@ let write target (text:string) =
 let playerHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<obj>) = 
     mailbox.Context.Watch connection |> ignore
 
-    let close () = 
-        printfn "Stopped, remote connection [%A] closed" remote
-        mailbox.Context.Stop mailbox.Self
-   
     let inputBuffer = new StringBuilder()    
-    write connection "Welcom to Akka FS MUD\r\n"
-    write connection "Please enter your name\r\n"
+    let ambient (message:obj) =
+        match message with
+        | :? Tcp.ConnectionClosed | :? Terminated ->
+            printfn "Stopped, remote connection [%A] closed" remote
+            mailbox.Context.Stop mailbox.Self
+        | _ -> ()
+
     let rec play player = 
         actor { 
             let! message = mailbox.Receive()
@@ -54,8 +55,7 @@ let playerHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef)
                 | Some(command) -> handleInput player command
                 | None -> ()
 
-            | :? Tcp.ConnectionClosed | :? Terminated -> close ()
-            | _ -> ()
+            | other -> ambient other
             return! play player
         }
 
@@ -66,19 +66,20 @@ let playerHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef)
             | :? Tcp.Received as received -> 
                 match receiveInput inputBuffer received with 
                 | Some(name) ->
-                    write connection (toAnsi("You will be known as " + name.yellow+ "\r\n"))
+                    write connection (formatAnsi "You will be known as {0}\r\n" [name.yellow])
                     let player = spawn mailbox.Context.System null (living name)
                     player <! SetOutput(mailbox.Self)
                     player <! SetContainerByActorRef(startRoom)
                     player <! Look
-                    inputBuffer.Clear() |> ignore //TODO: this is ugly
                     return! play player
                 | None -> ()
 
-            | :? Tcp.ConnectionClosed | :? Terminated -> close ()
-            | _ -> ()
+            | other -> ambient other
             return! login()
         }
+
+    write connection "Welcome to Akka FS MUD\r\n"
+    write connection "Please enter your name\r\n"
     login()
 
 let mudService (startRoom:IActorRef) (endpoint:IPEndPoint) (mailbox : Actor<obj>) = 
