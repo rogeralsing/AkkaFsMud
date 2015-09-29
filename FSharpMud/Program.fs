@@ -18,7 +18,7 @@ let sword = spawn system "sword" (thing "a sword")
 let helmet = spawn system "helmet" (thing "a rusty helmet")
 let backpack = spawn system "backpack" (container "a brown leather backpack" true true)
 
-let server = spawn system "server" (ConnectionHandler.mudService kitchen (new IPEndPoint(IPAddress.Any, 8090)))
+let server = spawn system "server" (ConnectionHandler.mudService kitchen (IPEndPoint(IPAddress.Any, 8090)))
 
 kitchen <! AddExit({name="north";ref=livingroom})
 livingroom <! AddExit({name="south";ref=kitchen})

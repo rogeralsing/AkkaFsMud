@@ -1,14 +1,14 @@
 ﻿module ConnectionHandler
-open Akka.Actor
-open Akka.IO
-open Akka.FSharp
-open System.Net
 open Actors
-open Messages
-open System.Text
+open Akka.Actor
+open Akka.FSharp
+open Akka.IO
 open AnsiSupport
 open InputHandler
+open Messages
 open System
+open System.Net
+open System.Text
 
 let receiveInput (inputBuffer:StringBuilder) (received:Tcp.Received)=
     let text = Encoding.ASCII.GetString(received.Data.ToArray());
@@ -42,7 +42,7 @@ type PlayerState =
 let playerHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef) (mailbox : Actor<obj>) = 
     mailbox.Context.Watch connection |> ignore
 
-    let inputBuffer = new StringBuilder()  
+    let inputBuffer = StringBuilder()  
 
     let rec loop (state:PlayerState) =
         actor {
@@ -78,7 +78,7 @@ let playerHandler (startRoom:IActorRef) (remote:EndPoint) (connection:IActorRef)
 
 let mudService (startRoom:IActorRef) (endpoint:IPEndPoint) (mailbox : Actor<obj>) = 
     let manager = mailbox.Context.System.Tcp()
-    manager <! (new Tcp.Bind(mailbox.Self, endpoint));
+    manager <! Tcp.Bind(mailbox.Self, endpoint);
     let rec loop() = 
         actor { 
             let! message = mailbox.Receive()
@@ -86,7 +86,7 @@ let mudService (startRoom:IActorRef) (endpoint:IPEndPoint) (mailbox : Actor<obj>
             | :? Tcp.Connected as connected -> 
                 printfn "Remote address %A connected" connected.RemoteAddress;
                 let handler = spawn mailbox.Context.System null (playerHandler startRoom (connected.RemoteAddress) (mailbox.Sender()))
-                mailbox.Sender() <! new Tcp.Register(handler)
+                mailbox.Sender() <! Tcp.Register(handler)
             | _ -> ()
             return! loop()
         }
